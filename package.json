@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "start": "copyfiles -a assets/**/*.* dist && parcel view/*.html --out-dir dist",
+    "start_no_map": "copyfiles -a assets/**/*.* dist && parcel view/*.html --out-dir dist --no-source-maps",
+    "deploy": "copyfiles -a assets/**/*.* dist && parcel build view/*.html --out-dir dist --no-source-maps"
+  },
+  "devDependencies": {
+    "parcel-bundler": "1.11.0",
+    "parcel-plugin-json-url-loader": "0.1.2",
+    "typescript": "^3.1.1",
+    "tslint": "5.12.1"
+  },
+  "dependencies": {
+    "copyfiles": "^2.1.0"
+  }
+}
