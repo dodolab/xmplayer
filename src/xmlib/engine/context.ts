@@ -1,8 +1,9 @@
+import { Sample, Instrument } from './xmfile';
 // Channel + all context structures
 
 // helping class that holds values for a current channel
 // used for playing and for applying effects
-class Channel {
+export class Channel {
     instrumentIndex = 0;
     sampleIndex = 0;
 
@@ -11,6 +12,8 @@ class Channel {
     param = 0; // parameter of the command
     samplePos = 0; // current position of a sample, is not integer!
     sampleSpeed = 0;
+    sample: Sample; // TODO !!! this has to be set !!!!!
+    instrument: Instrument; // TODO !! this has to be set!!!!
 
     // 1 = voice period has changed, set within effects
     // 3 = recalc speed
@@ -54,11 +57,12 @@ class Channel {
     // those two variables can be set only within the Effects object
     slideUpSpeed: number = 0;
     slideDownSpeed: number = 0;
+
+    pan: number = 0;
+    finalPan: number = 0; // final panning that considers also envelope
 }
 
-class XMContext {
-    pan = new Float32Array(32);
-    finalPan = new Float32Array(32); // final panning that considers also envelope
+export class XMContext {
 
     // ============ public vars ================
     tick = 0;
@@ -95,4 +99,6 @@ class XMContext {
     globalVolSlide = 0;
     channels: Channel[] = null;
     sampleRate: number;
+
+    amigaPeriods = false; // TODO copy from XMFile !!
 }

@@ -1,4 +1,4 @@
-class Sample {
+export class Sample {
 
     // number of bits per sample (8/16)
     bits: number = 0;
@@ -18,7 +18,7 @@ class Sample {
     volume: number = 0;
 }
 
-class Instrument {
+export class Instrument {
     name: string = ""; // instrument name 
     
     samples: Array<Sample> = new Array<Sample>();
