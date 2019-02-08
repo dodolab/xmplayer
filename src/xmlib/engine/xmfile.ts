@@ -1,10 +1,10 @@
 export class Sample {
 
     // number of bits per sample (8/16)
-    bits: number = 0;
+    bits: number = 8;
     
-    bps: number = 0;
-    data: Float32Array = null; 
+    bps: number = 1;
+    data: Float32Array = null;
     fineTune: number = 0;
     length: number = 0;
     loopEnd: number = 0;
@@ -12,19 +12,21 @@ export class Sample {
     loopStart: number = 0;
     loopType: number = 0;
     name: string = "";
-    panning: number = 0;
+    panning: number = 128;
     relativeNote: number = 0;
     stereo: number = 0;
-    volume: number = 0;
+    volume: number = 64;
 }
 
 export class Instrument {
     name: string = ""; // instrument name 
-    
+    headerLength: number = 0;
+    sampleHeaderLength: number = 0;
+
     samples: Array<Sample> = new Array<Sample>();
-    sampleMap: Uint8Array = null; 
+    sampleMap: Uint8Array =  new Uint8Array(96);
     sampleCount: number = 0; 
-    
+
     // vibrato
     vibratoDepth: number = 0;
     vibratoRate: number = 0;
@@ -32,7 +34,7 @@ export class Instrument {
     vibratoType: number = 0;
 
     // volume envelope
-    volEnvelope: Float32Array = null; 
+    volEnvelope: Float32Array = new Float32Array(325); 
     volEnvLength: number = 0; // number of volume points
     volSustain: number = 0; // volume sustaion point
     volLoopStart: number = 0; // volume loop start point
@@ -41,7 +43,7 @@ export class Instrument {
     volFadeout: number = 0; // volume fade out
 
     // pan envelope
-    panEnvelope: Float32Array = null; // pan envelope
+    panEnvelope: Float32Array = new Float32Array(325); // pan envelope
     panEnvLength: number = 0; // number of panning points
     panSustain: number = 0; // panning sustain point
     panLoopEnd: number = 0; // panning loop end point
@@ -50,9 +52,10 @@ export class Instrument {
 }
 
 export class XMFile {
-    signature: string = null;
+    signature: string = "";
     trackerVersion: number = null;
     title: string = "";
+    headerLength: number = 0; // length of the header
     songLength: number = 0; // song length in patterns
     repeatPos: number = 0; // restart position
     channelsNum: number = 0; // number of channels
