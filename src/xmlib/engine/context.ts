@@ -12,8 +12,8 @@ export class Channel {
     param = 0; // parameter of the command
     samplePos = 0; // current position of a sample, is not integer!
     sampleSpeed = 0;
-    sample: Sample; // TODO !!! this has to be set !!!!!
-    instrument: Instrument; // TODO !! this has to be set!!!!
+    sample: Sample = null; 
+    instrument: Instrument = null; 
 
     // 1 = voice period has changed, set within effects
     // 3 = recalc speed
@@ -58,14 +58,13 @@ export class Channel {
     slideUpSpeed: number = 0;
     slideDownSpeed: number = 0;
 
-    pan: number = 0;
-    finalPan: number = 0; // final panning that considers also envelope
+    pan: number = 0.5;
+    finalPan: number = 0.5; // final panning that considers also envelope
 }
 
 export class XMContext {
-
     // ============ public vars ================
-    tick = 0;
+    tick = -1;
     position = 0;
     row = 0;
     endOfSong = false;
@@ -78,7 +77,7 @@ export class XMContext {
     // 16 = pattern jump/break, global flag
     // 32 - global flag
     // 64 = loop pattern
-    flags = 0;
+    flags = 3; // recalc speed
     volume = 64;
 
     currentSpeed = 0;
@@ -97,7 +96,7 @@ export class XMContext {
     loopCount = 0;
 
     globalVolSlide = 0;
-    channels: Channel[] = null;
+    channels: Channel[] = [];
     sampleRate: number;
 
     amigaPeriods = false; // TODO copy from XMFile !!

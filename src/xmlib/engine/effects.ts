@@ -185,7 +185,6 @@ export default class Effects {
             channel.arpeggio = channel.param;
         } else {
             if (channel.param != 0) {
-                let i = channel.instrumentIndex;
                 let apn = channel.note;
                 if ((context.tick % 3) == 1) apn += channel.arpeggio >> 4;
                 if ((context.tick % 3) == 2) apn += channel.arpeggio & 0x0f;
@@ -652,7 +651,7 @@ export default class Effects {
         // same for all ticks
         if (context.tick == (channel.param & 0x0f)) {
             // TODO this shall be implemented directly in the player
-            player.processNote(player.modFile.patternOrderTable[player.position], ch);
+            //player.processNote(player.modFile.patternOrderTable[player.position], ch);
         }
     }
 

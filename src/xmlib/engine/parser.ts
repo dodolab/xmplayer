@@ -163,7 +163,7 @@ export class XMParser {
             instrument.name += this.dosToUTF(buffer[this.currentOffset + 4 + j++]);
         }
 
-        instrument.sampleCount = this.readDWord(buffer, this.currentOffset + 0x1b);
+        instrument.sampleCount = this.readWord(buffer, this.currentOffset + 0x1b);
 
         if (instrument.sampleCount != 0) {
             instrument.sampleHeaderLength = this.readDWord(buffer, this.currentOffset + 0x1d); // sample header length
@@ -185,6 +185,8 @@ export class XMParser {
             instrument.volFadeout = this.readWord(buffer, this.currentOffset + 0x10f);
             this.parseInstrumentSamples(buffer, instrument);
         } else {
+            // create dummy sample with default vals
+            instrument.samples[0] = new Sample();
             // just skip the header
             this.currentOffset += instrument.headerLength;
         }
@@ -262,7 +264,7 @@ export class XMParser {
         // sample headers
         this.currentOffset += instrument.headerLength;
         instrument.samples = new Array(instrument.sampleCount);
-        
+
         for (let j = 0; j < instrument.sampleCount; j++) {
             let datalen = this.readDWord(buffer, this.currentOffset + 0);
             instrument.samples[j] = new Sample();
