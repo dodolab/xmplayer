@@ -16,7 +16,7 @@ export class Mixer {
         this.xmFile = xmFile;
     }
 
-    public mix(bufs: Float32Array[], buffOffset: number) {
+    public mixSamples(bufs: Float32Array[], buffOffset: number) {
         this.outputLeft = 0.0;
         this.outputRight = 0.0;
 
@@ -69,7 +69,6 @@ export class Mixer {
                 this.outputLeft += sampleOutput1;
                 this.outputRight += sampleOutput2;
 
-                // TODO move this to separate method, this has nothing to do with mixing
                 // advance sample position and check for loop or end
                 let oldpos = channel.samplePos;
                 channel.samplePos += channel.playDir * channel.sampleSpeed;

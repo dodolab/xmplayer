@@ -123,13 +123,14 @@ export class SoundProcessor {
             // save old volume if ramping is needed
             channel.oldFinalVolume = channel.finalVolume;
 
-            if (this.context.flags & XM_FLAG_NEW_ROW) { // new row on this tick?
+            if (this.context.flags & XM_FLAG_NEW_ROW) { 
+                // new row on this tick -> store command
                 let command =  this.xmFile.patterns[patternIndex][patternDataOffset + 3];
                 let param = this.xmFile.patterns[patternIndex][patternDataOffset + 4];
                 channel.command = command;
                 channel.param = param;
-                if (!(channel.command == 0x0e &&  // 0E (14) is for any E-effect
-                    (channel.param & 0xf0) == 0xd0)) { // ED (note delay)?
+                // if not note delay effect, process note
+                if (!(command == 0x0e && (param & 0xf0) == 0xd0)) {
                     this.processNote(patternIndex, ch);
                 }
             }
