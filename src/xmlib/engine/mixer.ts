@@ -16,7 +16,7 @@ export class Mixer {
         this.xmFile = xmFile;
     }
 
-    public mix(bufs: Float32Array[], buffOffset: number) {
+    public mix(buffers: Float32Array[], buffOffset: number) {
         this.outputLeft = 0.0;
         this.outputRight = 0.0;
 
@@ -40,8 +40,8 @@ export class Mixer {
 
         // done - store to output buffer
         let volume = this.context.volume / 64.0;
-        bufs[0][buffOffset] = this.outputLeft * volume;
-        bufs[1][buffOffset] = this.outputRight * volume;
+        buffers[0][buffOffset] = this.outputLeft * volume;
+        buffers[1][buffOffset] = this.outputRight * volume;
     }
 
     private mixSample(channel: Channel): number {

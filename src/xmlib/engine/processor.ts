@@ -3,22 +3,154 @@ import { XMFile } from './xmfile';
 import { calcPeriod } from './utils';
 import Effects from './effects';
 
+/**
+ * Sound processing engine
+ */
 export class SoundProcessor {
-    
+
     effects: Effects = new Effects();
     context: XMContext = null;
     xmFile: XMFile = null;
 
-    public initialize(context: XMContext, xmFile: XMFile){
+    public initialize(context: XMContext, xmFile: XMFile) {
         this.context = context;
         this.xmFile = xmFile;
     }
 
+    /**
+     * Advances all channels by one tick
+     */
+    public processTick() {
+
+        for (let ch = 0; ch < this.xmFile.channelsNum; ch++) {
+            let channel = this.context.channels[ch];
+            // calculate playback position
+            let patternDataOffset = 5 * (this.context.row * this.xmFile.channelsNum + ch);
+            let patternIndex = this.xmFile.patternOrderTable[this.context.position];
+
+            let volume = this.xmFile.patterns[patternIndex][patternDataOffset + 2];
+
+            // save old volume if ramping is needed
+            channel.oldFinalVolume = channel.finalVolume;
+
+            if (this.context.flags & XM_FLAG_NEW_ROW) {
+                // new row on this tick -> store command
+                let command = this.xmFile.patterns[patternIndex][patternDataOffset + 3];
+                let param = this.xmFile.patterns[patternIndex][patternDataOffset + 4];
+                channel.command = command;
+                channel.param = param;
+                // if not note delay effect, process note
+                if (!(command == 0x0e && (param & 0xf0) == 0xd0)) {
+                    this.processNote(patternIndex, ch);
+                }
+            }
+
+            let instrument = channel.instrument;
+
+            // kill empty instruments
+            if (channel.noteOn && !instrument.sampleCount) {
+                channel.noteOn = false;
+            }
+
+            let firstTick = this.context.tick == 0;
+
+            // volume >=0x50 is an index into volume effect table
+            if (volume >= 0x50 && volume < 0xf0) {
+                // first effect takes place at 0x50, we need to get the first 4bits and rescale it in order
+                // to start at [0x00] as the volume effects are stored in an array
+                this.effects.voleffects[(volume >> 4) - 5](firstTick, channel, this.context, this.effects, volume & 0x0f);
+            }
+
+            if (channel.command < 0x24) {
+                // e-effects are distinguished in effect_t0_e based on player.data
+                this.effects.effects[channel.command](firstTick, channel, this.context, this.effects);
+            }
+
+            // recalc sample speed if voiceperiod has changed
+            if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod) {
+                let frequency: number;
+                // xmp plays Protracker and Fast Tracker II modules at standard PAL rate of
+                // 7093789.2 / (428 * 2) = 8287.137 for middle C
+                if (this.xmFile.amigaPeriods) {
+                    frequency = 8287.137 * 1712.0 / channel.voicePeriod;
+                } else {
+                    frequency = 8287.137 * Math.pow(2.0, (4608.0 - channel.voicePeriod) / 768.0);
+                }
+                channel.sampleSpeed = frequency / this.context.sampleRate;
+            }
+
+            // advance vibrato on each new tick
+            channel.vibratoPos += channel.vibratoSpeed;
+            channel.vibratoPos &= 0x3f; // 0011 1111
+
+            // advance volume envelope, if enabled (also fadeout)
+            if (instrument.volFlags & 1) {
+                channel.volEnvPos++;
+
+                if (channel.noteOn && (instrument.volFlags & 2) && channel.volEnvPos >= instrument.volSustain) {
+                    channel.volEnvPos = instrument.volSustain;
+                }
+
+                if ((instrument.volFlags & 4) && channel.volEnvPos >= instrument.volLoopEnd) {
+                    channel.volEnvPos = instrument.volLoopStart;
+                }
+
+                if (channel.volEnvPos >= instrument.volEnvLength) {
+                    channel.volEnvPos = instrument.volEnvLength;
+                }
+
+                channel.volEnvPos = Math.max(324, channel.volEnvPos);
+
+                // fadeout if note is off
+                if (!channel.noteOn && channel.fadeOutPos) {
+                    channel.fadeOutPos = Math.max(0, channel.fadeOutPos - instrument.volFadeout);
+                }
+            }
+
+            // advance pan envelope, if enabled
+            if (instrument.panFlags & 1) {
+                channel.panEnvPos++;
+
+                if (channel.noteOn && instrument.panFlags & 2 && channel.panEnvPos >= instrument.panSustain) {
+                    channel.panEnvPos = instrument.panSustain;
+                }
+
+                if (instrument.panFlags & 4 && channel.panEnvPos >= instrument.panLoopEnd) {
+                    channel.panEnvPos = instrument.panLoopStart;
+                }
+
+                if (channel.panEnvPos >= instrument.panEnvLength) {
+                    channel.panEnvPos = instrument.panEnvLength;
+                }
+
+                channel.panEnvPos = Math.max(324, channel.panEnvPos);
+            }
+
+            // calc final volume for channel
+            channel.finalVolume = channel.voiceVolume * instrument.volEnvelope[channel.volEnvPos] * channel.fadeOutPos / 65536.0;
+
+            // calc final panning for channel
+            channel.finalPan = channel.pan + (instrument.panEnvelope[channel.panEnvPos] - 0.5) * (0.5 * Math.abs(channel.pan - 0.5)) * 2.0;
+
+            // setup volramp if voice volume changed
+            if (channel.oldFinalVolume != channel.finalVolume) {
+                channel.volRampFrom = channel.oldFinalVolume;
+                channel.volRamp = 0.0;
+            }
+
+            // clear channel flags
+            channel.voicePeriodChanged = false;
+        }
+
+        // clear global flags after all channels are processed
+        this.context.flags &= 0x70; // 64 + 32 + 16
+    }
+
     // process one channel on a row in pattern p, pp is an offset to pattern data
-    public processNote(patternIndex: number, ch: number) {
+    private processNote(patternIndex: number, ch: number) {
 
         let patternDataOffset = 5 * (this.context.row * this.xmFile.channelsNum + ch);
-        let pattern = this.xmFile.patterns[patternIndex]; 
+        let pattern = this.xmFile.patterns[patternIndex];
         let note = pattern[patternDataOffset];
         // instrument index will be non-0 only for the very beginning of the pattern
         let instrumentOnRowIndex = pattern[patternDataOffset + 1] - 1;
@@ -80,7 +212,11 @@ export class SoundProcessor {
             if ((channel.noteOn && isPorta) || (!channel.noteOn && instrumentOnRowIndex != -1)) {
                 channel.samplePos = 0;
                 channel.playDir = 1;
-                if (channel.vibratoWave > 3) channel.vibratoPos = 0;
+                
+                if (channel.vibratoWave > 3) {
+                    channel.vibratoPos = 0;
+                }
+                
                 channel.noteOn = true;
                 channel.fadeOutPos = 65535;
                 channel.volEnvPos = 0;
@@ -94,137 +230,15 @@ export class SoundProcessor {
         }
 
         // can be null before the first note is played
-        if(channel.sample == null) {
+        if (channel.sample == null) {
             channel.sample = channel.instrument.samples[channel.sampleIndex];
         }
 
         let volume = pattern[patternDataOffset + 2];
         if (volume <= 0x40) {
+            // set volume (values are in range 0x00-0x40)
             channel.volume = volume;
             channel.voiceVolume = channel.volume;
         }
-    }
-
-    // advance player and all channels by a tick
-    public processTick() {
-        
-        // advance all channels by a tick  
-        for (let ch = 0; ch < this.xmFile.channelsNum; ch++) {
-            // TODO move to method processChannel
-
-            let channel = this.context.channels[ch];
-            // calculate playback position
-            let patternDataOffset = 5 * (this.context.row * this.xmFile.channelsNum + ch);
-            let patternIndex = this.xmFile.patternOrderTable[this.context.position];
-           
-            let volume =  this.xmFile.patterns[patternIndex][patternDataOffset + 2];
-           
-
-            // save old volume if ramping is needed
-            channel.oldFinalVolume = channel.finalVolume;
-
-            if (this.context.flags & XM_FLAG_NEW_ROW) { 
-                // new row on this tick -> store command
-                let command =  this.xmFile.patterns[patternIndex][patternDataOffset + 3];
-                let param = this.xmFile.patterns[patternIndex][patternDataOffset + 4];
-                channel.command = command;
-                channel.param = param;
-                // if not note delay effect, process note
-                if (!(command == 0x0e && (param & 0xf0) == 0xd0)) {
-                    this.processNote(patternIndex, ch);
-                }
-            }
-            
-            let instrument = channel.instrument;
-
-            // kill empty instruments
-            if (channel.noteOn && !instrument.sampleCount) {
-                channel.noteOn = false;
-            }
-
-            let firstTick = this.context.tick == 0;
-
-            // we set the volume for 0x10-0x50 in process_note. TODO refactor this!!
-            // TODO this was remapped from 0x00 to 0x40
-            if (volume >= 0x50 && volume < 0xf0) {
-                // first effect takes place at 0x50, we need to get the first 4bits and rescale it in order
-                // to start at [0x00] as the volume effects are stored in an array
-                this.effects.voleffects[(volume >> 4) - 5](firstTick, channel, this.context, this.effects, volume & 0x0f);
-            }
-            if (channel.command < 36) {
-                // e-effects are distinguished in effect_t0_e based on player.data
-                this.effects.effects[channel.command](firstTick, channel, this.context, this.effects);
-            }
-
-            // recalc sample speed if voiceperiod has changed
-            if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod) {
-                let frequency: number;
-                if (this.xmFile.amigaPeriods) {
-                    frequency = 8287.137 * 1712.0 / channel.voicePeriod;
-                } else {
-                    frequency = 8287.137 * Math.pow(2.0, (4608.0 - channel.voicePeriod) / 768.0);
-                }
-                channel.sampleSpeed = frequency / this.context.sampleRate;
-            }
-
-            // advance vibrato on each new tick
-            channel.vibratoPos += channel.vibratoSpeed;
-            channel.vibratoPos &= 0x3f; // 0011 1111
-
-            // advance volume envelope, if enabled (also fadeout)
-            if (instrument.volFlags & 1) {
-                channel.volEnvPos++;
-
-                if (channel.noteOn && (instrument.volFlags & 2) && channel.volEnvPos >= instrument.volSustain)
-                    channel.volEnvPos = instrument.volSustain;
-
-                if ((instrument.volFlags & 4) && channel.volEnvPos >= instrument.volLoopEnd)
-                    channel.volEnvPos = instrument.volLoopStart;
-
-                if (channel.volEnvPos >= instrument.volEnvLength)
-                    channel.volEnvPos = instrument.volEnvLength;
-
-                if (channel.volEnvPos > 324) channel.volEnvPos = 324;
-
-                // fadeout if note is off
-                if (!channel.noteOn && channel.fadeOutPos) {
-                    channel.fadeOutPos = Math.max(0, channel.fadeOutPos - instrument.volFadeout);
-                }
-            }
-
-            // advance pan envelope, if enabled
-            if (instrument.panFlags & 1) {
-                channel.panEnvPos++;
-
-                if (channel.noteOn && instrument.panFlags & 2 && channel.panEnvPos >= instrument.panSustain)
-                    channel.panEnvPos = instrument.panSustain;
-
-                if (instrument.panFlags & 4 && channel.panEnvPos >= instrument.panLoopEnd)
-                    channel.panEnvPos = instrument.panLoopStart;
-
-                if (channel.panEnvPos >= instrument.panEnvLength)
-                    channel.panEnvPos = instrument.panEnvLength;
-
-                if (channel.panEnvPos > 324) channel.panEnvPos = 324;
-            }
-
-            // calc final volume for channel
-            channel.finalVolume = channel.voiceVolume * instrument.volEnvelope[channel.volEnvPos] * channel.fadeOutPos / 65536.0;
-
-            // calc final panning for channel
-            channel.finalPan = channel.pan + (instrument.panEnvelope[channel.panEnvPos] - 0.5) * (0.5 * Math.abs(channel.pan - 0.5)) * 2.0;
-
-            // setup volramp if voice volume changed
-            if (channel.oldFinalVolume != channel.finalVolume) {
-                channel.volRampFrom = channel.oldFinalVolume;
-                channel.volRamp = 0.0;
-            }
-
-            // clear channel flags
-            channel.voicePeriodChanged = false;
-        }
-
-        // clear global flags after all channels are processed
-        this.context.flags &= 0x70; // 64 + 32 + 16
     }
 }

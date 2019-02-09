@@ -2,6 +2,7 @@ import { XMFile } from './engine/xmfile';
 import Tracker from './engine/tracker';
 import { XMParser } from './engine/parser';
 import { XM_FLAG_RECALC_SPEED } from './engine/context';
+
 export enum PlayerState {
     LOADING,
     READY,
@@ -219,7 +220,7 @@ export default class XMPlayer {
     }
 
     // check if a channel has a note on
-    isNoteOn(ch: number) : boolean {
+    isNoteOn(ch: number): boolean {
         if (ch >= this.channelsNum) return false;
         return this.tracker.context.channels[ch].noteOn;
     }
@@ -227,7 +228,7 @@ export default class XMPlayer {
 
 
     // get currently active sample on channel
-    currentSample(ch: number) : number {
+    currentSample(ch: number): number {
         if (ch >= this.channelsNum) return 0;
         return this.tracker.context.channels[ch].instrumentIndex;
     }
@@ -238,7 +239,7 @@ export default class XMPlayer {
     // volume: 255=no volume set, 0..64=set volume, 65..239=ft2 volume commands
     // command: 0x2e=no command, 0..0x24=effect command
     // data: 0..255
-    patternData(pn: number) : Uint8Array {
+    patternData(pn: number): Uint8Array {
         let xmFile = this.xmFile;
         let patt = new Uint8Array(xmFile.patterns[pn]);
         for (let i = 0; i < xmFile.patternLength[pn]; i++) for (let c = 0; c < xmFile.channelsNum; c++) {

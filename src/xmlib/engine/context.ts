@@ -46,6 +46,7 @@ export class Channel {
     vibratoSpeed: number = 0
     vibratoDepth: number = 0
     vibratoPos: number = 0;
+    // indices of vibrato table (values 0,1,2,3)
     vibratoWave: number = 0;
 
     volEnvPos: number = 0;

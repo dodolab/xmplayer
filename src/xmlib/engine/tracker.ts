@@ -1,10 +1,11 @@
-import Effects from "./effects";
 import { XMFile } from './xmfile';
 import { XMContext, Channel, XM_FLAG_NEW_TICK, XM_FLAG_NEW_ROW, XM_FLAG_LOOP_PATTERN, XM_FLAG_PATTERN_JUMP, XM_FLAG_NEW_PATTERN } from './context';
-import { calcPeriod } from "./utils";
 import { SoundProcessor } from "./processor";
 import { Mixer } from './mixer';
 
+/**
+ * Tracker for advancing the song
+ */
 export default class Tracker {
 
     xmFile: XMFile = null;
@@ -12,14 +13,13 @@ export default class Tracker {
     processor: SoundProcessor = new SoundProcessor();
     mixer: Mixer = new Mixer();
 
-    // initialize all player variables to defaults prior to starting playback
     initialize(xmFile: XMFile, sampleRate: number) {
         this.xmFile = xmFile;
 
         this.context = new XMContext();
         this.context.sampleRate = sampleRate;
 
-
+        // take values from xmFile if not zero
         if (this.xmFile.initSpeed != 0) this.context.currentSpeed = this.xmFile.initSpeed;
         if (this.xmFile.initBPM != 0) this.context.currentBpm = this.xmFile.initBPM;
 
@@ -37,11 +37,10 @@ export default class Tracker {
         this.context.endOfSong = false;
     }
 
-    // mix a buffer of audio for an audio processing event
-    public mix(bufs: Float32Array[], buflen: number) {
+    public mix(buffers: Float32Array[], bufferLength: number) {
 
         // fill audiobuffer
-        for (let s = 0; s < buflen; s++) {
+        for (let s = 0; s < bufferLength; s++) {
 
             // if STT has run out, step player forward by tick
             if (this.context.spd <= 0) {
@@ -49,18 +48,17 @@ export default class Tracker {
                 this.processor.processTick();
             }
 
-            this.mixer.mix(bufs, s);
+            this.mixer.mix(buffers, s);
             this.context.spd--;
         }
     }
 
-    // advance player by a tick
-    // TODO rename to processPattern
+    // advances player by a tick
     private advance() {
+
         // 125 BPM is the default MilkyTracker settings that gives 50 Hz
         this.context.spd = Math.floor((125.0 / this.context.currentBpm) * (this.context.sampleRate / 50.0)); // 50Hz
 
-        // advance player
         this.context.tick++;
         this.context.flags |= XM_FLAG_NEW_TICK;
 

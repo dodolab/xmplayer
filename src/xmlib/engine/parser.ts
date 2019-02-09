@@ -1,4 +1,5 @@
 import { XMFile, Sample, Instrument } from './xmfile';
+
 /**
  * XMFile parser
  */

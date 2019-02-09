@@ -38,4 +38,3 @@ export function calcPeriod(note : number, fineTune : number, amigaPeriods : bool
         return 7680.0 - note * 64.0 - fineTune / 2;
     }
 }
-
