@@ -145,6 +145,7 @@ export class SoundProcessor {
             let firstTick = this.context.tick == 0;
 
             // we set the volume for 0x10-0x50 in process_note. TODO refactor this!!
+            // TODO this was remapped from 0x00 to 0x40
             if (volume >= 0x50 && volume < 0xf0) {
                 // first effect takes place at 0x50, we need to get the first 4bits and rescale it in order
                 // to start at [0x00] as the volume effects are stored in an array

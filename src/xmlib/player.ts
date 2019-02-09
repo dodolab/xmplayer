@@ -52,10 +52,6 @@ export default class XMPlayer {
         return this.xmFile.title;
     }
 
-    get signature() {
-        return this.xmFile.signature;
-    }
-
     get songLength() {
         return this.xmFile.songLength;
     }

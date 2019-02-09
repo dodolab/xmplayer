@@ -8,9 +8,6 @@ export class XMParser {
 
     // parse the module from local buffer
     public parse(buffer: Uint8Array): XMFile {
-
-        this.currentOffset = 0x3c; // data starts at 0x3c
-
         let file = new XMFile();
         this.parseHeader(buffer, file);
         this.parsePatterns(buffer, file);
@@ -19,23 +16,26 @@ export class XMParser {
         return file;
     }
 
-    private parseHeader(buffer: Uint8Array, file: XMFile) {
+    private parseHeader(buffer: Uint8Array, file: XMFile): boolean {
+
+        this.currentOffset = 0x00;
 
         // check xm signature, type and tracker version
-        // todo replace with stringbuffer
-        for (let i = 0x00; i < 0x11; i++) file.signature += String.fromCharCode(buffer[i]);
-        if (file.signature != "Extended Module: ") return false;
-        file.signature = "X.M.";
+        let signature = "";
+        while (this.currentOffset < 0x11) signature += String.fromCharCode(buffer[this.currentOffset++]);
+        if (signature != "Extended Module: ") return false;
 
         // ID=0x1A
         if (buffer[0x25] != 0x1a) return false;
 
-        file.trackerVersion = this.readWord(buffer, 0x3a);
-        if (file.trackerVersion < 0x0104) return false; // older versions not currently supported
+        let trackerVersion = this.readWord(buffer, 0x3a);
+        if (trackerVersion < 0x0104) return false; // older versions not currently supported
 
         // song title
-        let idx = 0x11;
-        while (buffer[idx] && idx < 0x25) file.title += this.dosToUTF(buffer[idx++]);
+        this.currentOffset = 0x11;
+        while (buffer[this.currentOffset] && this.currentOffset < 0x25) file.title += this.dosToUTF(buffer[this.currentOffset++]);
+
+        this.currentOffset = 0x3c; // data starts at 0x3c
 
         file.headerLength = this.readDWord(buffer, this.currentOffset);
         file.songLength = this.readWord(buffer, this.currentOffset + 4);
@@ -43,10 +43,7 @@ export class XMParser {
         file.channelsNum = this.readWord(buffer, this.currentOffset + 8);
         file.patternsNum = this.readWord(buffer, this.currentOffset + 10);
         file.instrumentsNum = this.readWord(buffer, this.currentOffset + 12);
-
-        // flags: 0 = linear frequency table, 1 = amiga frequency table
         file.amigaPeriods = this.readWord(buffer, this.currentOffset + 14) == 1;
-
         file.initSpeed = this.readWord(buffer, this.currentOffset + 16);
         file.initBPM = this.readWord(buffer, this.currentOffset + 18);
     }
@@ -61,7 +58,7 @@ export class XMParser {
             file.patternOrderTable[i] = buffer[this.currentOffset + 20 + i];
             if (file.patternOrderTable[i] > patternsNum) patternsNum = file.patternOrderTable[i];
         }
-        patternsNum++; // number of patterns
+        patternsNum++;
 
         // ===========================================================================================
         // allocate arrays for pattern data
@@ -95,7 +92,7 @@ export class XMParser {
             while (j < datalen) {
                 let c = buffer[this.currentOffset + j++];
                 if (c & 128) {
-                    // first byte is a bitmask -> data is compressed
+                    // first byte is a bitmask -> data is compressed (usable when many notes and a few commands)
                     if (c & 1) pattern[k + 0] = buffer[this.currentOffset + j++];
                     if (c & 2) pattern[k + 1] = buffer[this.currentOffset + j++];
                     if (c & 4) pattern[k + 2] = buffer[this.currentOffset + j++];
@@ -113,7 +110,7 @@ export class XMParser {
             }
 
             // ===========================================================================================
-            // remapping edge values
+            // remapping edge values for better performance
 
             for (let k = 0; k < (file.patternLength[i] * file.channelsNum * 5); k += 5) {
                 // remap note to st3-style, 255=no note, 254=note off
@@ -125,7 +122,7 @@ export class XMParser {
                     pattern[k + 0]--;
                 }
 
-                // remap volume column setvol to 0x00..0x40, tone porta to 0x50..0x5f and 0xff for nop
+                // remap volume column setvol to 0x00..0x40, tone porta to 0x50..0x5f and 0xff for no-op
                 if (pattern[k + 2] < 0x10) {
                     pattern[k + 2] = 0xff;
                 } else if (pattern[k + 2] >= 0x10 && pattern[k + 2] <= 0x50) {
@@ -152,51 +149,45 @@ export class XMParser {
             let instrument = new Instrument();
             instrument.headerLength = this.readDWord(buffer, this.currentOffset);
             file.instruments[i] = instrument;
-            this.parseInstrument(buffer, instrument);
-        }
-    }
-
-    private parseInstrument(buffer: Uint8Array, instrument: Instrument) {
-
-        let j = 0;
-        while (buffer[this.currentOffset + 4 + j] && j < 0x16) {
-            instrument.name += this.dosToUTF(buffer[this.currentOffset + 4 + j++]);
-        }
-
-        instrument.sampleCount = this.readWord(buffer, this.currentOffset + 0x1b);
-
-        if (instrument.sampleCount != 0) {
-            instrument.sampleHeaderLength = this.readDWord(buffer, this.currentOffset + 0x1d); // sample header length
-
-            // sample numbers for all notes (96 bytes)
-            for (let i = 0; i < 96; i++) {
-                instrument.sampleMap[i] = buffer[this.currentOffset + 0x21 + i];
+            
+            // parse name
+            let j = 0;
+            while (buffer[this.currentOffset + 4 + j] && j < 0x16) {
+                instrument.name += this.dosToUTF(buffer[this.currentOffset + 4 + j++]);
             }
 
-            this.parseInstrumentEnvelopes(buffer, instrument);
+            instrument.sampleCount = this.readWord(buffer, this.currentOffset + 0x1b);
 
-            // vibrato
-            instrument.vibratoType = buffer[this.currentOffset + 0x10b];
-            instrument.vibratoSweep = buffer[this.currentOffset + 0x10c];
-            instrument.vibratoDepth = buffer[this.currentOffset + 0x10d];
-            instrument.vibratoRate = buffer[this.currentOffset + 0x10e];
+            if (instrument.sampleCount != 0) {
+                // parse samples
+                instrument.sampleHeaderLength = this.readDWord(buffer, this.currentOffset + 0x1d); 
 
-            // volume fade out
-            instrument.volFadeout = this.readWord(buffer, this.currentOffset + 0x10f);
-            this.parseInstrumentSamples(buffer, instrument);
-        } else {
-            // create dummy sample with default vals
-            instrument.samples[0] = new Sample();
-            // just skip the header
-            this.currentOffset += instrument.headerLength;
+                // sample numbers for all notes (96 bytes)
+                for (let i = 0; i < 96; i++) {
+                    instrument.sampleMap[i] = buffer[this.currentOffset + 0x21 + i];
+                }
+
+                this.parseInstrumentEnvelopes(buffer, instrument);
+
+                // vibrato
+                instrument.vibratoType = buffer[this.currentOffset + 0x10b];
+                instrument.vibratoSweep = buffer[this.currentOffset + 0x10c];
+                instrument.vibratoDepth = buffer[this.currentOffset + 0x10d];
+                instrument.vibratoRate = buffer[this.currentOffset + 0x10e];
+
+                // volume fade out
+                instrument.volFadeout = this.readWord(buffer, this.currentOffset + 0x10f);
+                this.parseInstrumentSamples(buffer, instrument);
+            } else {
+                // no samples -> create dummy sample with default vals
+                instrument.samples[0] = new Sample();
+                this.currentOffset += instrument.headerLength;
+            }
         }
     }
 
     private parseInstrumentEnvelopes(buffer: Uint8Array, instrument: Instrument) {
-        // envelope points. the xm specs say 48 bytes per envelope, but while that may
-        // technically be correct, what they don't say is that it means 12 pairs of
-        // little endian words. first word is the x coordinate, second is y. point
-        // 0 always has x=0.
+        // 48 bytes per envelope -> 12 pairs of 16bit-words (X,Y coords)
         let tmpVolEnvelope = new Array(12); // volume envelope
         let tmpPanEnvelope = new Array(12); // panning envelope
         for (let i = 0; i < 12; i++) {
@@ -239,7 +230,7 @@ export class XMParser {
 
         // pan envelope
         for (let j = 0; j < 325; j++) instrument.panEnvelope[j] = 0.5;
-        
+
         if (instrument.panFlags & 1) {
             for (let j = 0; j < 325; j++) {
                 let p = 1;
@@ -356,14 +347,22 @@ export class XMParser {
     private dosToUTF(c: number): string {
         if (c < 128) return String.fromCharCode(c);
         var cs = [
-            0x00c7, 0x00fc, 0x00e9, 0x00e2, 0x00e4, 0x00e0, 0x00e5, 0x00e7, 0x00ea, 0x00eb, 0x00e8, 0x00ef, 0x00ee, 0x00ec, 0x00c4, 0x00c5,
-            0x00c9, 0x00e6, 0x00c6, 0x00f4, 0x00f6, 0x00f2, 0x00fb, 0x00f9, 0x00ff, 0x00d6, 0x00dc, 0x00f8, 0x00a3, 0x00d8, 0x00d7, 0x0192,
-            0x00e1, 0x00ed, 0x00f3, 0x00fa, 0x00f1, 0x00d1, 0x00aa, 0x00ba, 0x00bf, 0x00ae, 0x00ac, 0x00bd, 0x00bc, 0x00a1, 0x00ab, 0x00bb,
-            0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x00c1, 0x00c2, 0x00c0, 0x00a9, 0x2563, 0x2551, 0x2557, 0x255d, 0x00a2, 0x00a5, 0x2510,
-            0x2514, 0x2534, 0x252c, 0x251c, 0x2500, 0x253c, 0x00e3, 0x00c3, 0x255a, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256c, 0x00a4,
-            0x00f0, 0x00d0, 0x00ca, 0x00cb, 0x00c8, 0x0131, 0x00cd, 0x00ce, 0x00cf, 0x2518, 0x250c, 0x2588, 0x2584, 0x00a6, 0x00cc, 0x2580,
-            0x00d3, 0x00df, 0x00d4, 0x00d2, 0x00f5, 0x00d5, 0x00b5, 0x00fe, 0x00de, 0x00da, 0x00db, 0x00d9, 0x00fd, 0x00dd, 0x00af, 0x00b4,
-            0x00ad, 0x00b1, 0x2017, 0x00be, 0x00b6, 0x00a7, 0x00f7, 0x00b8, 0x00b0, 0x00a8, 0x00b7, 0x00b9, 0x00b3, 0x00b2, 0x25a0, 0x00a0
+            0x00c7, 0x00fc, 0x00e9, 0x00e2, 0x00e4, 0x00e0, 0x00e5, 0x00e7,
+            0x00ea, 0x00eb, 0x00e8, 0x00ef, 0x00ee, 0x00ec, 0x00c4, 0x00c5,
+            0x00c9, 0x00e6, 0x00c6, 0x00f4, 0x00f6, 0x00f2, 0x00fb, 0x00f9,
+            0x00ff, 0x00d6, 0x00dc, 0x00f8, 0x00a3, 0x00d8, 0x00d7, 0x0192,
+            0x00e1, 0x00ed, 0x00f3, 0x00fa, 0x00f1, 0x00d1, 0x00aa, 0x00ba,
+            0x00bf, 0x00ae, 0x00ac, 0x00bd, 0x00bc, 0x00a1, 0x00ab, 0x00bb,
+            0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x00c1, 0x00c2, 0x00c0,
+            0x00a9, 0x2563, 0x2551, 0x2557, 0x255d, 0x00a2, 0x00a5, 0x2510,
+            0x2514, 0x2534, 0x252c, 0x251c, 0x2500, 0x253c, 0x00e3, 0x00c3,
+            0x255a, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256c, 0x00a4,
+            0x00f0, 0x00d0, 0x00ca, 0x00cb, 0x00c8, 0x0131, 0x00cd, 0x00ce,
+            0x00cf, 0x2518, 0x250c, 0x2588, 0x2584, 0x00a6, 0x00cc, 0x2580,
+            0x00d3, 0x00df, 0x00d4, 0x00d2, 0x00f5, 0x00d5, 0x00b5, 0x00fe,
+            0x00de, 0x00da, 0x00db, 0x00d9, 0x00fd, 0x00dd, 0x00af, 0x00b4,
+            0x00ad, 0x00b1, 0x2017, 0x00be, 0x00b6, 0x00a7, 0x00f7, 0x00b8,
+            0x00b0, 0x00a8, 0x00b7, 0x00b9, 0x00b3, 0x00b2, 0x25a0, 0x00a0
         ];
         return String.fromCharCode(cs[c - 128]);
     }

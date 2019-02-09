@@ -52,8 +52,6 @@ export class Instrument {
 }
 
 export class XMFile {
-    signature: string = "";
-    trackerVersion: number = null;
     title: string = "";
     headerLength: number = 0; // length of the header
     songLength: number = 0; // song length in patterns
