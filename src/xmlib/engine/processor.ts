@@ -1,4 +1,4 @@
-import { XMContext } from './context';
+import { XMContext, XM_FLAG_NEW_ROW } from './context';
 import { XMFile } from './xmfile';
 import { calcPeriod } from './utils';
 import Effects from './effects';
@@ -54,7 +54,7 @@ export class SoundProcessor {
 
         // 0xFE is note off, 0xFF is no note
         if (note == 0xFE) { // this is our special value for arpeggio effect with 0 value in order to save performance
-            channel.noteOn = 0; // note off
+            channel.noteOn = false; // note off
             if (!(instrument.volFlags & 1)) channel.voiceVolume = 0;
         }
         else if (note < 0xFE) {
@@ -74,7 +74,6 @@ export class SoundProcessor {
                 channel.note = note;
                 channel.period = period;
                 channel.voicePeriod = channel.period;
-                channel.flags |= 3; // force sample speed recalc
             }
 
             // restart values for porta if playing and for the beginning of the row if not playing
@@ -82,7 +81,7 @@ export class SoundProcessor {
                 channel.samplePos = 0;
                 channel.playDir = 1;
                 if (channel.vibratoWave > 3) channel.vibratoPos = 0;
-                channel.noteOn = 1;
+                channel.noteOn = true;
                 channel.fadeOutPos = 65535;
                 channel.volEnvPos = 0;
                 channel.panEnvPos = 0;
@@ -124,7 +123,7 @@ export class SoundProcessor {
             // save old volume if ramping is needed
             channel.oldFinalVolume = channel.finalVolume;
 
-            if (this.context.flags & 2) { // new row on this tick?
+            if (this.context.flags & XM_FLAG_NEW_ROW) { // new row on this tick?
                 let command =  this.xmFile.patterns[patternIndex][patternDataOffset + 3];
                 let param = this.xmFile.patterns[patternIndex][patternDataOffset + 4];
                 channel.command = command;
@@ -139,7 +138,7 @@ export class SoundProcessor {
 
             // kill empty instruments
             if (channel.noteOn && !instrument.sampleCount) {
-                channel.noteOn = 0;
+                channel.noteOn = false;
             }
 
             let firstTick = this.context.tick == 0;
@@ -156,7 +155,7 @@ export class SoundProcessor {
             }
 
             // recalc sample speed if voiceperiod has changed
-            if ((channel.flags & 1 || this.context.flags & 2) && channel.voicePeriod) {
+            if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod) {
                 let frequency: number;
                 if (this.xmFile.amigaPeriods) {
                     frequency = 8287.137 * 1712.0 / channel.voicePeriod;
@@ -220,7 +219,7 @@ export class SoundProcessor {
             }
 
             // clear channel flags
-            channel.flags = 0;
+            channel.voicePeriodChanged = false;
         }
 
         // clear global flags after all channels are processed

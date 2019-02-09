@@ -1,33 +1,42 @@
 import { Sample, Instrument } from './xmfile';
-// Channel + all context structures
 
-// helping class that holds values for a current channel
-// used for playing and for applying effects
+
+/**
+ * Instant data for every channel
+ */
 export class Channel {
+    // index in the array of instruments
     instrumentIndex = 0;
-    sampleIndex = 0;
-
-    note = 36;
+    // index in the array of samples
+    sampleIndex = 0;    
+    // note value (format octave|note, 0x24 is E4), scale: C|C#|D|D#|E|F|F#|G|G#|A|A#B
+    note = 0x24;
+    // command index
     command = 0;
-    param = 0; // parameter of the command
-    samplePos = 0; // current position of a sample, is not integer!
+    // command param
+    param = 0; 
+    // current position of a playing sample (float -> continuous)
+    samplePos = 0; 
+    // speed of a playing sample
     sampleSpeed = 0;
+
     sample: Sample = null; 
     instrument: Instrument = null; 
 
-    // 1 = voice period has changed, set within effects
-    // 3 = recalc speed
-    flags = 0;
-    noteOn = 0;
+    voicePeriodChanged: boolean = false;
+    // indicator if the note is enabled
+    noteOn: boolean = false;
 
+    // volume slide
     volSlide: number = 0;
     slideSpeed: number = 0;
     slideTo: number = 0;
     slideToSpeed: number = 0;
+    // arpeggio value taken from effect param, format (octave|note)
     arpeggio: number = 0;
-
+    
+    // period for portamento effect
     period: number = 640;
-    frequency: number = 8363;
 
     volume: number = 64;
     voicePeriod: number = 0;
@@ -41,8 +50,10 @@ export class Channel {
 
     volEnvPos: number = 0;
     panEnvPos: number = 0;
+    // current position for volume fade out 
     fadeOutPos: number = 0;
 
+    // playing direction, float in range <-1,1>
     playDir: number = 1;
 
     // interpolation/ramps
@@ -50,34 +61,45 @@ export class Channel {
     volRampFrom: number = 0;
     trigRamp: number = 0;
     trigRampFrom: number = 0.0;
+    // current sample waveform value
     currentSample: number = 0.0;
     lastSample: number = 0.0;
     oldFinalVolume: number = 0.0;
 
-    // those two variables can be set only within the Effects object
     slideUpSpeed: number = 0;
     slideDownSpeed: number = 0;
 
     pan: number = 0.5;
-    finalPan: number = 0.5; // final panning that considers also envelope
+    // final panning that considers also envelope
+    finalPan: number = 0.5; 
 }
 
+
+// local flags, 8 not used
+export const XM_FLAG_NEW_TICK = 1;
+export const XM_FLAG_NEW_ROW = 2;
+export const XM_FLAG_RECALC_SPEED = 3; // new row + tick = recalc speed
+export const XM_FLAG_NEW_PATTERN = 4;
+
+// global flags, 32 not used
+export const XM_FLAG_PATTERN_JUMP = 16;
+export const XM_FLAG_LOOP_PATTERN = 64
+
+
+/**
+ * XM player context
+ */
 export class XMContext {
-    // ============ public vars ================
+    // current tick
     tick = -1;
+    // position across all patterns
     position = 0;
+    // position in current row
     row = 0;
     endOfSong = false;
     // ========================================
 
-    // 1 = 
-    // 2 = new row
-    // 3 = recalc speed
-    // 4 = new pattern
-    // 16 = pattern jump/break, global flag
-    // 32 - global flag
-    // 64 = loop pattern
-    flags = 3; // recalc speed
+    flags = XM_FLAG_RECALC_SPEED;
     volume = 64;
 
     currentSpeed = 0;

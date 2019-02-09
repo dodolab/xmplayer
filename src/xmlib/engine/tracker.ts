@@ -1,6 +1,6 @@
 import Effects from "./effects";
 import { XMFile } from './xmfile';
-import { XMContext, Channel } from './context';
+import { XMContext, Channel, XM_FLAG_NEW_TICK, XM_FLAG_NEW_ROW, XM_FLAG_LOOP_PATTERN, XM_FLAG_PATTERN_JUMP, XM_FLAG_NEW_PATTERN } from './context';
 import { calcPeriod } from "./utils";
 import { SoundProcessor } from "./processor";
 import { Mixer } from './mixer';
@@ -62,7 +62,7 @@ export default class Tracker {
 
         // advance player
         this.context.tick++;
-        this.context.flags |= 1;
+        this.context.flags |= XM_FLAG_NEW_TICK;
 
         // new row on this tick?
         if (this.context.tick >= this.context.currentSpeed) {
@@ -72,29 +72,29 @@ export default class Tracker {
                 } else {
                     this.context.row++;
                     this.context.tick = 0;
-                    this.context.flags |= 2;
+                    this.context.flags |= XM_FLAG_NEW_ROW;
                     this.context.patternDelay = 0;
                 }
             } else {
-                if (this.context.flags & 0x70) { // 0111 0000 -> if there is a global flag set
-                    if (this.context.flags & 0x40) { // 0100 0000 -> loop pattern?
+                if (this.context.flags & 0x70) { // 0111 0000 -> check if there is a global flag set
+                    if (this.context.flags & XM_FLAG_LOOP_PATTERN) { 
                         this.context.row = this.context.loopRow;
-                        this.context.flags &= 0xa1; // 1010 0001 -> 1, 16, 64 
+                        this.context.flags &= 0xa1; // 1010 0001 -> keep next tick, pattern jump and loop pattern 
                         this.context.flags |= 2;
-                    } else if (this.context.flags & 16) { // pattern jump/break?
+                    } else if (this.context.flags & XM_FLAG_PATTERN_JUMP) { // pattern jump/break?
                         this.context.position = this.context.patternJump;
                         this.context.row = this.context.breakRow;
                         this.context.patternJump = 0;
                         this.context.breakRow = 0;
-                        this.context.flags &= 0xe1; // 1110 0001 -> 1, 16, 32, 64
-                        this.context.flags |= 2;
+                        this.context.flags &= 0xa1; // 1110 0001 -> keep next tick, pattern jump and loop pattern
+                        this.context.flags |= XM_FLAG_NEW_ROW;
                     }
 
                     this.context.tick = 0;
                 } else {
                     this.context.row++;
                     this.context.tick = 0;
-                    this.context.flags |= 2;
+                    this.context.flags |= XM_FLAG_NEW_ROW;
                 }
             }
         }
@@ -103,7 +103,7 @@ export default class Tracker {
         if (this.context.row >= this.xmFile.patternLength[this.xmFile.patternOrderTable[this.context.position]]) {
             this.context.position++;
             this.context.row = 0;
-            this.context.flags |= 4;
+            this.context.flags |= XM_FLAG_NEW_PATTERN;
         }
 
         // end of song?

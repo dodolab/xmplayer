@@ -1,4 +1,4 @@
-import { XMContext, Channel } from "./context";
+import { XMContext, Channel, XM_FLAG_PATTERN_JUMP, XM_FLAG_LOOP_PATTERN } from './context';
 import { calcPeriod } from "./utils";
 
 
@@ -186,13 +186,14 @@ export default class Effects {
         } else {
             if (channel.param != 0) {
                 let apn = channel.note;
+                // note is in format (octave|note, e.g. 3C for C3)
                 if ((context.tick % 3) == 1) apn += channel.arpeggio >> 4;
                 if ((context.tick % 3) == 2) apn += channel.arpeggio & 0x0f;
 
                 let relativeNote = channel.sample.relativeNote;
                 let fineTune = channel.sample.fineTune;
                 channel.voicePeriod = calcPeriod(apn + relativeNote, fineTune, context.amigaPeriods);
-                channel.flags |= 1;
+                channel.voicePeriodChanged = true;
             }
         }
     }
@@ -203,7 +204,7 @@ export default class Effects {
         } else {
             channel.voicePeriod -= channel.slideUpSpeed;
             if (channel.voicePeriod < 1) channel.voicePeriod += 65535; // indeed, FT2 logic...
-            channel.flags |= 3; // recalc speed
+            channel.voicePeriodChanged = true;
         }
     }
 
@@ -212,7 +213,7 @@ export default class Effects {
             if (channel.param) channel.slideDownSpeed = channel.param * 4;
         } else {
             channel.voicePeriod = Math.min(7680, channel.voicePeriod + channel.slideDownSpeed);
-            channel.flags |= 3; // recalc speed
+            channel.voicePeriodChanged = true; 
         }
     }
 
@@ -230,7 +231,7 @@ export default class Effects {
                 if (channel.voicePeriod < channel.slideTo)
                     channel.voicePeriod = channel.slideTo;
             }
-            channel.flags |= 3; // recalc speed  
+            channel.voicePeriodChanged = true; 
         }
     }
 
@@ -246,7 +247,7 @@ export default class Effects {
             let waveform = effects.vibratotable[channel.vibratoWave & 3][channel.vibratoPos] / 63.0;
             let increase = channel.vibratoDepth * waveform;
             channel.voicePeriod += increase;
-            channel.flags |= 1;
+            channel.voicePeriodChanged = true;
         }
     }
 
@@ -315,7 +316,7 @@ export default class Effects {
         if (firstTick) {
             context.breakRow = 0;
             context.patternJump = channel.param;
-            context.flags |= 16;
+            context.flags |= XM_FLAG_PATTERN_JUMP;
         } else {
             // TODO +1 tick impl
         }
@@ -332,8 +333,8 @@ export default class Effects {
     effectD(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // d pattern break
         if (firstTick) {
             context.breakRow = ((channel.param & 0xf0) >> 4) * 10 + (channel.param & 0x0f);
-            if (!(context.flags & 16)) context.patternJump = context.position + 1;
-            context.flags |= 16;
+            if (!(context.flags & XM_FLAG_PATTERN_JUMP)) context.patternJump = context.position + 1;
+            context.flags |= XM_FLAG_PATTERN_JUMP;
         } else {
             // TODO +1 tick impl
         }
@@ -397,7 +398,7 @@ export default class Effects {
 
     effectK(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // k key off
         if (firstTick) {
-            channel.noteOn = 0;
+            channel.noteOn = false;
             if (!(channel.instrument.volFlags & 1)) channel.voiceVolume = 0;
         } else {
             // TODO +1 tick impl
@@ -541,7 +542,7 @@ export default class Effects {
     eEffect2(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e2 fine slide down
         if (firstTick) {
             channel.period = Math.min(856, channel.period + channel.param & 0x0f);
-            channel.flags |= 1;
+            channel.voicePeriodChanged = true;
         } else {
             // TODO +1 tick impl
         }
@@ -576,7 +577,7 @@ export default class Effects {
             if (channel.param & 0x0f) {
                 if (context.loopCount != 0) {
                     context.loopCount--;
-                    context.flags |= 64;
+                    context.flags |= XM_FLAG_LOOP_PATTERN;
                 } else {
                     context.loopCount = channel.param & 0x0f;
                 }

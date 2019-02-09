@@ -1,6 +1,7 @@
 import { XMFile } from './engine/xmfile';
 import Tracker from './engine/tracker';
 import { XMParser } from './engine/parser';
+import { XM_FLAG_RECALC_SPEED } from './engine/context';
 export enum PlayerState {
     LOADING,
     READY,
@@ -171,7 +172,7 @@ export default class XMPlayer {
         this.tracker.context.tick = 0;
         this.tracker.context.row = 0;
         this.tracker.context.position += step;
-        this.tracker.context.flags = 1 + 2; // recalc speed
+        this.tracker.context.flags = XM_FLAG_RECALC_SPEED;
         if (this.tracker.context.position < 0) this.tracker.context.position = 0;
         if (this.tracker.context.position >= this.songLength) {
 
@@ -222,15 +223,15 @@ export default class XMPlayer {
     }
 
     // check if a channel has a note on
-    isNoteOn(ch: number) {
-        if (ch >= this.channelsNum) return 0;
+    isNoteOn(ch: number) : boolean {
+        if (ch >= this.channelsNum) return false;
         return this.tracker.context.channels[ch].noteOn;
     }
 
 
 
     // get currently active sample on channel
-    currentSample(ch: number) {
+    currentSample(ch: number) : number {
         if (ch >= this.channelsNum) return 0;
         return this.tracker.context.channels[ch].instrumentIndex;
     }
