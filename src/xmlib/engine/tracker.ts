@@ -49,7 +49,7 @@ export default class Tracker {
                 this.processor.processTick();
             }
 
-            this.mixer.mixSamples(bufs, s);
+            this.mixer.mix(bufs, s);
             this.context.spd--;
         }
     }
