@@ -5,10 +5,12 @@ import { calcPeriod } from "./utils";
 type EffectFunc = (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) => void;
 type VolEffectFunc = (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) => void;
 
+
 /**
- * Special effects
+ * Special effect functions
  */
 export default class Effects {
+
     vibratotable: Float32Array[];
     voleffects: VolEffectFunc[] = []; // volume effect jumptable
     effects: EffectFunc[] = []; // general effect jumptable
@@ -17,71 +19,71 @@ export default class Effects {
     constructor() {
         // volume column effect jumptable for 0x50..0xef
         // there is no effect at 0x00
-        this.voleffects[0x01] = this.volEffect60;
-        this.voleffects[0x02] = this.volEffect70;
-        this.voleffects[0x03] = this.volEffect80;
-        this.voleffects[0x04] = this.volEffect90;
-        this.voleffects[0x05] = this.volEffectA0;
-        this.voleffects[0x06] = this.volEffectB0;
-        this.voleffects[0x07] = this.volEffectC0;
-        this.voleffects[0x08] = this.volEffectD0;
-        this.voleffects[0x09] = this.volEffectE0;
-        this.voleffects[0x0A] = this.volEffectF0;
+        this.voleffects[0x01] = this.volEffect60;   // 60-6f vol slide down
+        this.voleffects[0x02] = this.volEffect70;   // 70-7f vol slide up
+        this.voleffects[0x03] = this.volEffect80;   // 80-8f fine vol slide down
+        this.voleffects[0x04] = this.volEffect90;   // 90-9f fine vol slide up
+        this.voleffects[0x05] = this.volEffectA0;   // a0-af set vibrato speed
+        this.voleffects[0x06] = this.volEffectB0;   // b0-bf vibrato
+        this.voleffects[0x07] = this.volEffectC0;   // c0-cf set panning
+        this.voleffects[0x08] = this.volEffectD0;   // d0-df panning slide left
+        this.voleffects[0x09] = this.volEffectE0;   // e0-ef panning slide right
+        this.voleffects[0x0A] = this.volEffectF0;   // f0-ff tone porta
 
         // effect jumptables 
-        this.effects[0x00] = this.effect0;
-        this.effects[0x01] = this.effect1;
-        this.effects[0x02] = this.effect2;
-        this.effects[0x03] = this.effect3;
-        this.effects[0x04] = this.effect4;
-        this.effects[0x05] = this.effect5;
-        this.effects[0x06] = this.effect6;
-        this.effects[0x07] = this.effect7;
-        this.effects[0x08] = this.effect8;
-        this.effects[0x09] = this.effect9;
-        this.effects[0x0a] = this.effectA;
-        this.effects[0x0b] = this.effectB;
-        this.effects[0x0c] = this.effectC;
-        this.effects[0x0d] = this.effectD;
-        this.effects[0x0e] = this.effectE;
-        this.effects[0x0f] = this.effectF;
-        this.effects[0x10] = this.effectG;
-        this.effects[0x11] = this.effectH;
-        this.effects[0x12] = this.effectI;
-        this.effects[0x13] = this.effectJ;
-        this.effects[0x14] = this.effectK;
-        this.effects[0x15] = this.effectL;
-        this.effects[0x16] = this.effectM;
-        this.effects[0x17] = this.effectN;
-        this.effects[0x18] = this.effectO;
-        this.effects[0x19] = this.effectP;
-        this.effects[0x1a] = this.effectQ;
-        this.effects[0x1b] = this.effectR;
-        this.effects[0x1c] = this.effectS;
-        this.effects[0x1d] = this.effectT;
-        this.effects[0x1e] = this.effectU;
-        this.effects[0x1f] = this.effectV;
-        this.effects[0x20] = this.effectW;
-        this.effects[0x21] = this.effectX;
-        this.effects[0x22] = this.effectY;
-        this.effects[0x23] = this.effectZ;
+        this.effects[0x00] = this.effect0;      // 0 arpeggio
+        this.effects[0x01] = this.effect1;      // 1 slide up
+        this.effects[0x02] = this.effect2;      // 2 slide down
+        this.effects[0x03] = this.effect3;      // 3 slide to note
+        this.effects[0x04] = this.effect4;      // 4 vibrato
+        this.effects[0x05] = this.effect5;      // 5 tone portamento + volume slide
+        this.effects[0x06] = this.effect6;      // 6 vibrato + volume slide
+        this.effects[0x07] = this.effect7;      // 7 tremolo
+        this.effects[0x08] = this.effect8;      // 8 set panning position
+        this.effects[0x09] = this.effect9;      // 9 set sample offset
+        this.effects[0x0a] = this.effectA;      // a volume slide up/down
+        this.effects[0x0b] = this.effectB;      // b pattern jump
+        this.effects[0x0c] = this.effectC;      // c set volume
+        this.effects[0x0d] = this.effectD;      // d pattern break
+        this.effects[0x0e] = this.effectE;      // e effects switch
+        this.effects[0x0f] = this.effectF;      // f set speed
+        this.effects[0x10] = this.effectG;      // g set global volume
+        this.effects[0x11] = this.effectH;      // h global volume slide
+        //this.effects[0x12] = this.effectI;    not used
+        //this.effects[0x13] = this.effectJ;    not used
+        this.effects[0x14] = this.effectK;      // k key off
+        this.effects[0x15] = this.effectL;      // l set envelope position
+        //this.effects[0x16] = this.effectM;    not used
+        //this.effects[0x17] = this.effectN;    not used
+        //this.effects[0x18] = this.effectO;    not used
+        this.effects[0x19] = this.effectP;      // p panning slide
+        //this.effects[0x1a] = this.effectQ;    not used
+        this.effects[0x1b] = this.effectR;      // r multi retrig note
+        //this.effects[0x1c] = this.effectS;    not used
+        this.effects[0x1d] = this.effectT;      // t tremor
+        //this.effects[0x1e] = this.effectU;    not used
+        //this.effects[0x1f] = this.effectV;    not used
+        //this.effects[0x20] = this.effectW;    not used
+        this.effects[0x21] = this.effectX;      // x extra fine porta up/down
+        //this.effects[0x22] = this.effectY;    not used
+        //this.effects[0x23] = this.effectZ;    not used
 
-        this.eEffects[0x00] = this.eEffect0;
-        this.eEffects[0x01] = this.eEffect1;
-        this.eEffects[0x02] = this.eEffect2;
-        this.eEffects[0x03] = this.eEffect3;
-        this.eEffects[0x04] = this.eEffect4;
-        this.eEffects[0x05] = this.eEffect5;
-        this.eEffects[0x06] = this.eEffect6;
-        this.eEffects[0x07] = this.eEffect7;
-        this.eEffects[0x08] = this.eEffect8;
-        this.eEffects[0x09] = this.eEffect9;
-        this.eEffects[0x0a] = this.eEffectA;
-        this.eEffects[0x0b] = this.eEffectB;
-        this.eEffects[0x0c] = this.eEffectC;
-        this.eEffects[0x0d] = this.eEffectD;
-        this.eEffects[0x0e] = this.eEffectE;
-        this.eEffects[0x0f] = this.eEffectF;
+        //this.eEffects[0x00] = this.eEffect0;  not used
+        this.eEffects[0x01] = this.eEffect1;    // e1 fine slide up
+        this.eEffects[0x02] = this.eEffect2;    // e2 fine slide down
+        this.eEffects[0x03] = this.eEffect3;    // e3 set glissando
+        this.eEffects[0x04] = this.eEffect4;    // e4 set vibrato waveform
+        this.eEffects[0x05] = this.eEffect5;    // e5 set finetune
+        this.eEffects[0x06] = this.eEffect6;    // e6 loop pattern
+        this.eEffects[0x07] = this.eEffect7;    // e7 tremolo control
+        //this.eEffects[0x08] = this.eEffect8;  not used
+        this.eEffects[0x09] = this.eEffect9;    // e9 retrig note
+        this.eEffects[0x0a] = this.eEffectA;    // ea fine volslide up
+        this.eEffects[0x0b] = this.eEffectB;    // eb fine volslide down
+        this.eEffects[0x0c] = this.eEffectC;    // ec note cut
+        this.eEffects[0x0d] = this.eEffectD;    // ed note delay
+        this.eEffects[0x0e] = this.eEffectE;    // ee pattern delay
+        //this.eEffects[0x0f] = this.eEffectF;  not used
 
         // calc tables for vibrato waveforms
         this.vibratotable = [new Float32Array(64), new Float32Array(64), new Float32Array(64), new Float32Array(64)];
@@ -93,9 +95,12 @@ export default class Effects {
             this.vibratotable[3][i] = (1 - 2 * Math.random()) * 127; // random
         }
     }
-    //
+
+
+    // ==============================
     // volume column effect functions
-    //
+    // ==============================
+
     volEffect60(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // 60-6f vol slide down
         if (firstTick) {
             // TODO first tick impl
@@ -177,9 +182,10 @@ export default class Effects {
         }
     }
 
-    //
-    // tick 0 effect functions
-    //
+    // ==============================
+    // special effect functions
+    // ==============================
+
     effect0(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 0 arpeggio
         if (firstTick) {
             channel.arpeggio = channel.param;
@@ -251,7 +257,7 @@ export default class Effects {
         }
     }
 
-    effect5(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 5
+    effect5(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 5 tone portamento + volume slide
         if (firstTick) {
             effects.effectA(true, channel, context, effects);
         } else {
@@ -260,7 +266,7 @@ export default class Effects {
         }
     }
 
-    effect6(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 6
+    effect6(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 6 vibrato + volume slide
         if (firstTick) {
             effects.effectA(true, channel, context, effects);
         } else {
@@ -269,7 +275,8 @@ export default class Effects {
         }
     }
 
-    effect7(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 7
+    effect7(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 7 tremolo
+        // TODO - syntax is the same as for the vibrato
         if (firstTick) {
             // todo first tick impl
         } else {
@@ -277,7 +284,7 @@ export default class Effects {
         }
     }
 
-    effect8(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 8 set panning
+    effect8(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 8 set panning position
         if (firstTick) {
             channel.pan = channel.param / 255.0;
         } else {
@@ -296,7 +303,7 @@ export default class Effects {
         }
     }
 
-    effectA(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // a volume slide
+    effectA(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // a volume slide up/down
         if (firstTick) {
             // this behavior differs from protracker!! A00 will slide using previous non-zero parameter.
             if (channel.param) channel.volSlide = channel.param;
@@ -340,7 +347,7 @@ export default class Effects {
         }
     }
 
-    effectE(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e
+    effectE(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e E effects
         let eEffectIndex = (channel.param & 0xf0) >> 4; // convert ABCD0000 to ABCD
         effects.eEffects[eEffectIndex](firstTick, channel, context, effects);
     }
@@ -380,21 +387,7 @@ export default class Effects {
         }
     }
 
-    effectI(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // i
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
-
-    effectJ(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // j
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // I,J not supported by XM format
 
     effectK(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // k key off
         if (firstTick) {
@@ -414,29 +407,7 @@ export default class Effects {
         }
     }
 
-    effectM(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // m
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
-
-    effectN(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // n
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
-
-    effectO(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // o 
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // M,N,O not supported by XM format
 
     effectP(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // p panning slide
         if (firstTick) {
@@ -446,13 +417,7 @@ export default class Effects {
         }
     }
 
-    effectQ(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // q
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // Q not supported by XM format
 
     effectR(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // r multi retrig note
         if (firstTick) {
@@ -462,15 +427,10 @@ export default class Effects {
         }
     }
 
-    effectS(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // s
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // S not supported by XM format
 
     effectT(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // t tremor
+        // This weird command will set the volume to zero during off time number of ticks
         if (firstTick) {
             // TODO first tick impl
         } else {
@@ -478,29 +438,7 @@ export default class Effects {
         }
     }
 
-    effectU(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // u
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
-
-    effectV(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // v
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
-
-    effectW(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // w
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // U,V,W not supported by XM
 
     effectX(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // x extra fine porta up/down
         if (firstTick) {
@@ -510,26 +448,13 @@ export default class Effects {
         }
     }
 
-    effectY(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // y
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // Y,Z not supported by XM
 
-    effectZ(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // z
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // ==============================
+    // E-effect functions
+    // ==============================
 
-    eEffect0(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e0 filter on/off
-        // syntax E+0+1 to make your .MOD file sound terrible on an Amiga
-        // docu: this effect is not implemented in FT due to the fact that it's totally useless
-    }
+    // E0 is a legacy from MOD file and it's not supported by XM format
 
     eEffect1(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e1 fine slide up
         if (firstTick) {
@@ -589,7 +514,7 @@ export default class Effects {
         }
     }
 
-    eEffect7(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e7
+    eEffect7(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e7 tremolo control
         if (firstTick) {
             // TODO first tick impl
         } else {
@@ -597,15 +522,9 @@ export default class Effects {
         }
     }
 
-    eEffect8(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e8, use for syncing
-        if (firstTick) {
-            
-        } else {
-            // TODO +1 tick impl
-        }
-    }
+    // E8 not supported by XM format
 
-    eEffect9(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e9
+    eEffect9(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e9 retrig note
         if (firstTick) {
             // TODO first tick impl
         } else {
@@ -639,7 +558,7 @@ export default class Effects {
         }
     }
 
-    eEffectC(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ec
+    eEffectC(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ec note cut
         if (firstTick) {
             // TODO first tick impl
         } else {
@@ -648,7 +567,7 @@ export default class Effects {
         }
     }
 
-    eEffectD(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ed delay sample
+    eEffectD(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ed note delay
         // same for all ticks
         if (context.tick == (channel.param & 0x0f)) {
             // TODO this shall be implemented directly in the player
@@ -656,7 +575,7 @@ export default class Effects {
         }
     }
 
-    eEffectE(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ee delay pattern
+    eEffectE(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ee pattern delay
         if (firstTick) {
             context.patternDelay = channel.param & 0x0f;
             context.patternWait = 0;
@@ -665,11 +584,5 @@ export default class Effects {
         }
     }
 
-    eEffectF(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ef
-        if (firstTick) {
-            // TODO first tick impl
-        } else {
-            // TODO 1+ tick impl
-        }
-    }
+    // F not supported by XM format
 }
