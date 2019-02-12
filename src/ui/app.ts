@@ -11,12 +11,15 @@ class XMPlayerApp {
     ticker: PIXI.ticker.Ticker = null;
     player: XMPlayer;
     ctx: CanvasRenderingContext2D;
+    canvas: HTMLCanvasElement;
 
     constructor(){
         this.init(<HTMLCanvasElement>document.getElementById('player'));
     }
 
     init(canvas: HTMLCanvasElement, resolution: number = 1) {
+        this.canvas = canvas;
+
         /*this.app = new PIXI.Application({
             width: canvas.width / resolution,
             height: canvas.height / resolution,
@@ -46,17 +49,27 @@ class XMPlayerApp {
 
         this.ctx = canvas.getContext("2d");
         this.ctx.font = "64px VGA";
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        this.drawString("?.-2{>*", 0, 42);
-        this.drawString("test", 32*7, 42);
+       
 
+        document.body.addEventListener("mousedown", () => {
+            this.player = new XMPlayer();
+            this.player.load("assets/mods/Test Drive II.xm");
+    
+            this.player.onReady = () => {
+                this.player.play();
+            }
+    
+            this.player.onPlay = () => this.loop(0);
+        });
     }
 
     gfx: PIXI.Graphics;
 
+    fontSize = 64;
+
     private drawString(str: string, posX: number, posY: number){
         this.ctx.fillStyle = "rgb(255,255,255)";
-        this.ctx.fillText(str, posX, posY);
+        this.ctx.fillText(str, this.fontSize + this.fontSize/2*posX, this.fontSize + this.fontSize/2*posY);
     }
 
     private loop(time) {
@@ -67,12 +80,13 @@ class XMPlayerApp {
         // update our own logic 
         this.update(dt, this.gameTime);
         // draw PIXI internal
-        this.ticker.update(this.gameTime);
+       // this.ticker.update(this.gameTime);
         requestAnimationFrame((time) => this.loop(time));
     }
 
     private update(delta: number, absolute: number){
-        this.gfx.clear();
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawString(this.player.row + ":" + this.player.position + "/" + this.player.songLength, 0, 0);
     }
 }
 
