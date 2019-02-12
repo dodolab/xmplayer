@@ -10,13 +10,14 @@ class XMPlayerApp {
     gameTime = 0;
     ticker: PIXI.ticker.Ticker = null;
     player: XMPlayer;
+    ctx: CanvasRenderingContext2D;
 
     constructor(){
         this.init(<HTMLCanvasElement>document.getElementById('player'));
     }
 
     init(canvas: HTMLCanvasElement, resolution: number = 1) {
-        this.app = new PIXI.Application({
+        /*this.app = new PIXI.Application({
             width: canvas.width / resolution,
             height: canvas.height / resolution,
             antialias: true,
@@ -40,10 +41,23 @@ class XMPlayerApp {
             }
     
             this.player.onPlay = () => this.loop(0);
-        });
+        });*/
+
+
+        this.ctx = canvas.getContext("2d");
+        this.ctx.font = "64px VGA";
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.drawString("?.-2{>*", 0, 42);
+        this.drawString("test", 32*7, 42);
+
     }
 
     gfx: PIXI.Graphics;
+
+    private drawString(str: string, posX: number, posY: number){
+        this.ctx.fillStyle = "rgb(255,255,255)";
+        this.ctx.fillText(str, posX, posY);
+    }
 
     private loop(time) {
 
@@ -58,7 +72,7 @@ class XMPlayerApp {
     }
 
     private update(delta: number, absolute: number){
-
+        this.gfx.clear();
     }
 }
 
