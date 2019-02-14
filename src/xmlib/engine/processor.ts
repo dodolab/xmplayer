@@ -226,6 +226,7 @@ export class SoundProcessor {
             }
 
             // set the slide to note target to note period
+            // TODO if no porta and note on, what is this good for??? Check! Perhaps Effect3 is executed automagically!
             channel.slideTo = period;
         }
 

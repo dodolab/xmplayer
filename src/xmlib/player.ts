@@ -85,6 +85,10 @@ export default class XMPlayer {
         return this.tracker.context.currentBpm;
     }
 
+    get sampleNum(){
+        return this.xmFile.instruments.length;
+    }
+
     getSampleName(index: number): string {
         return this.xmFile.instruments.length <= index ? "" : this.xmFile.instruments[index].name;
     }
