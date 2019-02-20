@@ -122,5 +122,5 @@ export class XMContext {
     channels: Channel[] = [];
     sampleRate: number;
 
-    amigaPeriods = false; // TODO copy from XMFile !!
+    amigaPeriods = false;
 }

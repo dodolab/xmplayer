@@ -86,7 +86,7 @@ export class XMFile {
     patternsNum: number = 0;
     // up to 128 instruments
     instrumentsNum: number = 0; 
-    // if true, amiga periods will be used 
+    // if true, amiga periods will be used (it really makes difference in sound!)
     amigaPeriods: boolean = false;
     // default tempo
     initSpeed: number = 0;

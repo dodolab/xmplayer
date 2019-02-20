@@ -193,8 +193,8 @@ export default class Effects {
             if (channel.param != 0) {
                 let apn = channel.note;
                 // note is in format (octave|note, e.g. 3C for C3)
-                if ((context.tick % 3) == 1) apn += channel.arpeggio >> 4;
-                if ((context.tick % 3) == 2) apn += channel.arpeggio & 0x0f;
+                if ((context.tick % 3) == 1) apn += (channel.arpeggio >> 4);
+                if ((context.tick % 3) == 2) apn += (channel.arpeggio & 0x0f);
 
                 let relativeNote = channel.sample.relativeNote;
                 let fineTune = channel.sample.fineTune;
@@ -243,14 +243,15 @@ export default class Effects {
 
     effect4(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // 4 vibrato
         if (firstTick) {
-            // todo, why not only & 0xFF check??
-            if (channel.param & 0x0f && channel.param & 0xf0) {
-                channel.vibratoDepth = (channel.param & 0x0f);
+            if (channel.param & 0x0f) {
+                channel.vibratoDepth = (channel.param & 0x0f); 
+            }
+            if (channel.param & 0xf0) {
                 channel.vibratoSpeed = (channel.param & 0xf0) >> 4;
             }
             effects.effect4(false, channel, context, effects);
         } else {
-            let waveform = effects.vibratotable[channel.vibratoWave & 3][channel.vibratoPos] / 63.0;
+            let waveform = effects.vibratotable[channel.vibratoWave & 3][channel.vibratoPos] >> 8;
             let increase = channel.vibratoDepth * waveform;
             channel.voicePeriod += increase;
             channel.voicePeriodChanged = true;
@@ -314,7 +315,7 @@ export default class Effects {
             }
             if (!(channel.volSlide & 0xf0)) {
                 // x is zero, slide down
-                channel.voiceVolume = Math.max(0, channel.voiceVolume - channel.volSlide & 0x0f);
+                channel.voiceVolume = Math.max(0, channel.voiceVolume - (channel.volSlide & 0x0f));
             }
         }
     }
@@ -458,7 +459,7 @@ export default class Effects {
 
     eEffect1(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e1 fine slide up
         if (firstTick) {
-            channel.period = Math.max(113, channel.period - channel.param & 0x0f);
+            channel.period = Math.max(113, channel.period - (channel.param & 0x0f));
         } else {
             // TODO +1 tick impl
         }
@@ -466,7 +467,7 @@ export default class Effects {
 
     eEffect2(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e2 fine slide down
         if (firstTick) {
-            channel.period = Math.min(856, channel.period + channel.param & 0x0f);
+            channel.period = Math.min(856, channel.period + (channel.param & 0x0f));
             channel.voicePeriodChanged = true;
         } else {
             // TODO +1 tick impl
@@ -504,7 +505,7 @@ export default class Effects {
                     context.loopCount--;
                     context.flags |= XM_FLAG_LOOP_PATTERN;
                 } else {
-                    context.loopCount = channel.param & 0x0f;
+                    context.loopCount = (channel.param & 0x0f);
                 }
             } else {
                 context.loopRow = context.row;
@@ -544,7 +545,7 @@ export default class Effects {
 
     eEffectA(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ea fine volslide up
         if (firstTick) {
-            channel.voiceVolume = Math.min(64, channel.voiceVolume + channel.param & 0x0f);
+            channel.voiceVolume = Math.min(64, channel.voiceVolume + (channel.param & 0x0f));
         } else {
             // TODO +1 tick impl
         }
@@ -552,7 +553,7 @@ export default class Effects {
 
     eEffectB(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // eb fine volslide down
         if (firstTick) {
-            channel.voiceVolume = Math.max(0, channel.voiceVolume - channel.param & 0x0f);
+            channel.voiceVolume = Math.max(0, channel.voiceVolume - (channel.param & 0x0f));
         } else {
             // TODO +1 tick impl
         }
@@ -577,7 +578,7 @@ export default class Effects {
 
     eEffectE(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ee pattern delay
         if (firstTick) {
-            context.patternDelay = channel.param & 0x0f;
+            context.patternDelay = (channel.param & 0x0f);
             context.patternWait = 0;
         } else {
             // TODO +1 tick impl

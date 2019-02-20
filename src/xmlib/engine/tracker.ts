@@ -23,6 +23,8 @@ export default class Tracker {
         if (this.xmFile.initSpeed != 0) this.context.currentSpeed = this.xmFile.initSpeed;
         if (this.xmFile.initBPM != 0) this.context.currentBpm = this.xmFile.initBPM;
 
+        this.context.amigaPeriods = this.xmFile.amigaPeriods;
+
         // create channel table
         for (let i = 0; i < this.xmFile.channelsNum; i++) {
             this.context.channels[i] = new Channel();

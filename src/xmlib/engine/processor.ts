@@ -99,7 +99,7 @@ export class SoundProcessor {
                     channel.volEnvPos = instrument.volEnvLength;
                 }
 
-                channel.volEnvPos = Math.max(324, channel.volEnvPos);
+                channel.volEnvPos = Math.min(324, channel.volEnvPos);
 
                 // fadeout if note is off
                 if (!channel.noteOn && channel.fadeOutPos) {
@@ -123,7 +123,7 @@ export class SoundProcessor {
                     channel.panEnvPos = instrument.panEnvLength;
                 }
 
-                channel.panEnvPos = Math.max(324, channel.panEnvPos);
+                channel.panEnvPos = Math.min(324, channel.panEnvPos);
             }
 
             // calc final volume for channel
