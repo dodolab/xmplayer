@@ -251,7 +251,7 @@ export default class Effects {
             }
             effects.effect4(false, channel, context, effects);
         } else {
-            let waveform = effects.vibratotable[channel.vibratoWave & 3][channel.vibratoPos] >> 8;
+            let waveform = effects.vibratotable[channel.vibratoWave & 3][channel.vibratoPos] / 63.0;
             let increase = channel.vibratoDepth * waveform;
             channel.voicePeriod += increase;
             channel.voicePeriodChanged = true;
