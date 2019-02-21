@@ -67,11 +67,11 @@ export class SoundProcessor {
             }
 
             // recalc sample speed if voiceperiod has changed
-            if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod) {
+            if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod != 0) {
                 let frequency: number;
                 // xmp plays Protracker and Fast Tracker II modules at standard PAL rate of
                 // 7093789.2 / (428 * 2) = 8287.137 for middle C
-                if (this.xmFile.amigaPeriods) {
+                if (this.context.amigaPeriods) {
                     frequency = 8287.137 * 1712.0 / channel.voicePeriod;
                 } else {
                     frequency = 8287.137 * Math.pow(2.0, (4608.0 - channel.voicePeriod) / 768.0);

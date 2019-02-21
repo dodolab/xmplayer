@@ -193,8 +193,8 @@ export default class Effects {
             if (channel.param != 0) {
                 let apn = channel.note;
                 // note is in format (octave|note, e.g. 3C for C3)
-                if ((context.tick % 3) == 1) apn += (channel.arpeggio >> 4);
-                if ((context.tick % 3) == 2) apn += (channel.arpeggio & 0x0f);
+                if ((context.tick % 3) == 1) apn += (channel.arpeggio >> 4); // second tick
+                if ((context.tick % 3) == 2) apn += (channel.arpeggio & 0x0f); // third tick
 
                 let relativeNote = channel.sample.relativeNote;
                 let fineTune = channel.sample.fineTune;
