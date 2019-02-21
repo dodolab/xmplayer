@@ -2,24 +2,13 @@
 // codepage 128x192, 16x16 -> 8x12px
 
 import * as PIXI from 'pixi.js';
-import XMPlayer from '../xmlib/player';
+import XMPlayer, { PlayerState } from '../xmlib/player';
 
-var modFiles = [
-    "Black Riders keygen",
-    "BRD Keygen",
-    "Chip Mania",
-    "Cracked Zone",
-    "dance_with_a_daemon",
-    "Estaryk",
-    "GAME1_Level_0",
-    "GAME7_Level_6",
-    "Prehistorik 2",
-    "Test Drive II",
-    "Toilet story",
-    "Trolls",
-    "Under SEH",
-    "Unreal Superhero 3"
-];
+class ModFile {
+    name: string;
+    size: number;
+    path: string;
+}
 
 class XMPlayerApp {
     app: PIXI.Application = null;
@@ -41,62 +30,87 @@ class XMPlayerApp {
     virtualWidth = 1920;
     virtualHeight = 1080;
 
-    filePositions = [];
+    modFiles: ModFile[];
+
+    private getParameterByName(name: string) : string {
+        var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+        return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+    }
 
     init() {
-        this.canvas = <HTMLCanvasElement>document.getElementById('player');
+        // load json files
+        let request = new XMLHttpRequest();
+        request.open("GET", 'assets/files.json', true);
+        request.responseType = "json";
 
-        this.canvas.addEventListener("mousedown", (evt: MouseEvent) => {
-            for(let filePos of this.filePositions){
-                let posX = filePos.posX as number;
-                let posY = filePos.posY as number;
-                let sizeX = filePos.sizeX;
-                let sizeY = filePos.sizeY;
+        request.onload = () => {
+            this.modFiles = request.response as ModFile[];
 
-                let mouseX = evt.offsetX;
-                let mouseY = evt.offsetY;
+            this.canvas = <HTMLCanvasElement>document.getElementById('player');
 
-                if(mouseX >= posX && mouseX <= posX + sizeX && mouseY >= posY && mouseY <= posY + sizeY){
-                    this.player.pause();
-                    this.playSong(filePos.song);
-                    return;
-                }
-            }
-        });
-
-        this.ctx = this.canvas.getContext("2d");
-        this.ctx.font = this.fontSize + "px VGA";
-        // set fix size and set scale
-        this.canvas.height = this.virtualHeight;
-        this.canvas.width = this.virtualWidth;
-        resizeCanvas(this.canvas, this.virtualWidth, this.virtualHeight);
-        window.addEventListener("resize", () => {
+            this.ctx = this.canvas.getContext("2d");
+            
+            // set fix size and set scale
+            this.canvas.height = this.virtualHeight;
+            this.canvas.width = this.virtualWidth;
+            
+            this.player = new XMPlayer();
             resizeCanvas(this.canvas, this.virtualWidth, this.virtualHeight);
             this.recalcFonts();
-        });
-
-        let listener = () => {
-            document.body.removeEventListener("mousedown", listener);
-            this.player = new XMPlayer();
-            this.playSong(modFiles[(Math.floor(Math.random()*modFiles.length))]);
-
-            this.player.onReady = () => {
+            this.ctx.font = this.fontSize + "px VGA";
+            
+            window.addEventListener("resize", () => {
+                resizeCanvas(this.canvas, this.virtualWidth, this.virtualHeight);
                 this.recalcFonts();
-                this.player.play();
-                this.loop(0);
-            }
+            });
 
-            this.player.onPlay = () => this.loop(0);
-        };
+            
+            let listener = () => {
+                document.body.removeEventListener("mousedown", listener);
 
-        document.body.addEventListener("mousedown", listener);
+                let songToPlay = this.modFiles[(Math.floor(Math.random() * this.modFiles.length))];
+
+                let queryStrSong = this.getParameterByName("song");
+
+                if(queryStrSong){
+                    queryStrSong += ".xm";
+                    this.modFiles.forEach((file) => {
+                        if(file.name.toLowerCase() == queryStrSong.toLowerCase()){
+                            songToPlay = file;
+                            return;
+                        }
+                    });
+                }
+                
+
+                this.playSong(songToPlay);
+
+                this.player.onReady = () => {
+                    this.recalcFonts();
+                    this.player.play();
+                }
+
+                this.player.onPlay = () => {
+
+                }
+
+                this.player.onStop = () => {
+                    // switch to the next song
+                    this.playSong(this.modFiles[(Math.floor(Math.random() * this.modFiles.length))]);
+                };
+            };
+
+            document.body.addEventListener("mousedown", listener);
+            this.loop(0);
+        }
+        request.send();
     }
 
     currentSong = "";
 
-    private playSong(songName: string) {
-        this.currentSong = songName;
-        this.player.load("assets/mods/" + songName + ".xm");
+    private playSong(modFile: ModFile) {
+        this.currentSong = modFile.name;
+        this.player.load(modFile.path);
     }
 
     private drawString(str: string, posX: number, posY: number, color = "rgb(255,255,255") {
@@ -106,9 +120,11 @@ class XMPlayerApp {
 
     private recalcFonts() {
         let channels = this.player.channelsNum;
-        let canvasWidth = this.virtualWidth;
-        this.fontSize = Math.min(32,2 * canvasWidth / (channels * this.lettersPerChannel + this.leftBlockLength));
-        this.ctx.font = this.fontSize + "px VGA";
+        if (channels != 0) {
+            let canvasWidth = this.virtualWidth;
+            this.fontSize = Math.min(32, 2 * canvasWidth / (channels * this.lettersPerChannel + this.leftBlockLength));
+            this.ctx.font = this.fontSize + "px VGA";
+        }
     }
 
     private loop(time) {
@@ -126,39 +142,34 @@ class XMPlayerApp {
     private update(delta: number, absolute: number) {
         this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight);
 
+        if (this.player.state != PlayerState.PLAYING) {
+            let str = "TOUCH HERE TO PLAY";
+            let strLength = str.length;
+            let strWidth = this.virtualWidth / (this.fontSize / 2);
+            let strHeight = this.virtualHeight / (this.fontSize);
+            this.drawString(str, strWidth / 2 - strLength / 2   , strHeight / 2);
+            return;
+        }
+
+        // render song title
+        this.drawString("SONG: " + this.player.title, 0, 0);    
+
         // render instruments
-        for (let i = 0; i < this.player.sampleNum; i++){
+        for (let i = 0; i < this.player.sampleNum; i++) {
             let sampleName = this.player.getSampleName(i);
-            if(sampleName.length == 0) sampleName = "Unknown sample";
+            if (sampleName.length == 0) sampleName = "Unknown sample";
             let isNoteOn = false;
 
-            for(let c = 0; c < this.player.channelsNum; c++){
+            for (let c = 0; c < this.player.channelsNum; c++) {
                 let smp = this.player.currentSample(c);
-                if(this.player.isNoteOn(c) && smp == i){
-                    isNoteOn = true;        
-                    break;  
+                if (this.player.isNoteOn(c) && smp == i) {
+                    isNoteOn = true;
+                    break;
                 }
             }
 
-            this.drawString(sampleName, 0, i, isNoteOn ? "rgb(0,129,255)" : "rgb(255,255,255)");
+            this.drawString(sampleName, 0, i + 2, isNoteOn ? "rgb(0,129,255)" : "rgb(255,255,255)");
         }
-
-        let tempFilePos = [];
-        // render songs
-        for(let i = 0; i<modFiles.length; i++) {
-            let song = modFiles[i];
-            let posX = this.fontSize + this.fontSize / 2 * 0;
-            let posY = this.fontSize + this.fontSize * (this.player.sampleNum + i);
-            let sizeX = song.length*this.fontSize/2;
-            let sizeY = this.fontSize;
-            tempFilePos.push({
-                posX: posX, posY: posY, sizeX: sizeX, sizeY: sizeY, song: song
-            });
-            this.drawString(song, 0, this.player.sampleNum + 1 + i, song == this.currentSong ? "rgb(255,100,0" : "rgb(255,255,255)");
-        }
-
-        this.filePositions = tempFilePos;
-        //this.trackerStartIndex = this.player.sampleNum + 1;
 
         var pd = "";
         var pp, pdata;
@@ -200,7 +211,7 @@ function notef(note: number, sample: number, vol: number, command: number, param
     function pattVol(v) { return (v <= 0x40) ? hb(v) : (volumeCommands[(v - 0x50) >> 4] + hn(v & 0x0f)); }
 
     return ((note < 255) ? (pattNote(note) + " ") : ("... ")) + (sample ? (hb(sample) + " ") : (".. ")) +
-        ((vol != 255) ? (pattVol(vol)+ " ") : (".. ")) + ((command != 0x2e) ? (String.fromCharCode(command) + hb(param)) : "...") + "|";    
+        ((vol != 255) ? (pattVol(vol) + " ") : (".. ")) + ((command != 0x2e) ? (String.fromCharCode(command) + hb(param)) : "...") + "|";
 }
 
 

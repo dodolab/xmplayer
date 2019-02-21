@@ -50,19 +50,19 @@ export default class XMPlayer {
     }
 
     get title() {
-        return this.xmFile.title;
+        return this.xmFile ? this.xmFile.title : '';
     }
 
     get songLength() {
-        return this.xmFile.songLength;
+        return this.xmFile ? this.xmFile.songLength : 0;
     }
 
     get channelsNum() {
-        return this.xmFile.channelsNum;
+        return this.xmFile ? this.xmFile.channelsNum : 0;
     }
 
     get patternsNum() {
-        return this.xmFile.patternsNum;
+        return this.xmFile ? this.xmFile.patternsNum : 0;
     }
 
     get endOfSong() {
@@ -85,7 +85,7 @@ export default class XMPlayer {
         return this.tracker.context.currentBpm;
     }
 
-    get sampleNum(){
+    get sampleNum() {
         return this.xmFile.instruments.length;
     }
 
@@ -245,7 +245,7 @@ export default class XMPlayer {
     // data: 0..255
     patternData(pn: number): Uint8Array {
         let xmFile = this.xmFile;
-        let patt = new Uint8Array(xmFile.patterns[pn]);
+        let patt = new Uint8Array(xmFile.patterns[xmFile.patternOrderTable[pn]]);
         for (let i = 0; i < xmFile.patternLength[pn]; i++) for (let c = 0; c < xmFile.channelsNum; c++) {
             if (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] < 97)
                 patt[i * 5 * xmFile.channelsNum + c * 5 + 0] = (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] % 12) | (Math.floor(patt[i * 5 * xmFile.channelsNum + c * 5 + 0] / 12) << 4);
@@ -303,11 +303,11 @@ export default class XMPlayer {
 
     // scriptnode callback - pass through to player class
     private audioLoop(ape: AudioProcessingEvent) {
-        if (this.initDelay == 0) {
+        // stereo buffer
+        let bufs = [ape.outputBuffer.getChannelData(0), ape.outputBuffer.getChannelData(1)];
+        let buflen = ape.outputBuffer.length;
 
-            // stereo buffer
-            let bufs = [ape.outputBuffer.getChannelData(0), ape.outputBuffer.getChannelData(1)];
-            let buflen = ape.outputBuffer.length;
+        if (this.initDelay == 0) {
 
             // return a buffer of silence if not playing
             if (this.state != PlayerState.PLAYING || this.endOfSong) {
@@ -324,9 +324,13 @@ export default class XMPlayer {
 
             if (this.tracker.context.endOfSong && this.repeat) {
                 this.tracker.repeat();
+            } else if (this.tracker.context.endOfSong && this.state == PlayerState.PLAYING) { this.stop(); }
+        } else {
+            // delay.. anyway, return silent buffer (TODO refactor this)
+            for (let s = 0; s < buflen; s++) {
+                bufs[0][s] = 0.0;
+                bufs[1][s] = 0.0;
             }
-
-            if (this.tracker.context.endOfSong && this.state == PlayerState.PLAYING) { this.stop(); }
         }
 
         if (this.initDelay > 0) { this.initDelay--; }

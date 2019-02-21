@@ -1,8 +1,8 @@
 {
   "scripts": {
-    "start": "copyfiles -a assets/**/*.* dist && parcel view/*.html --out-dir dist",
-    "start_no_map": "copyfiles -a assets/**/*.* dist && parcel view/*.html --out-dir dist --no-source-maps",
-    "deploy": "copyfiles -a assets/**/*.* dist && parcel build view/*.html --out-dir dist --no-source-maps"
+    "start": "node deploy.js && parcel view/*.html --out-dir dist",
+    "start_no_map": "node deploy.js && parcel view/*.html --out-dir dist --no-source-maps",
+    "deploy": "node deploy.js && parcel build view/*.html --out-dir dist --no-source-maps"
   },
   "devDependencies": {
     "parcel-bundler": "1.11.0",
@@ -11,8 +11,5 @@
     "tslint": "5.12.1",
     "@types/pixi.js": "^4.8.3",
     "pixi.js": "^4.8.2"
-  },
-  "dependencies": {
-    "copyfiles": "^2.1.0"
   }
 }
