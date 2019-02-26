@@ -68,7 +68,7 @@ export default class Effects {
         //this.effects[0x22] = this.effectY;    not used
         //this.effects[0x23] = this.effectZ;    not used
 
-        //this.eEffects[0x00] = this.eEffect0;  not used
+        this.eEffects[0x00] = this.eEffect0;
         this.eEffects[0x01] = this.eEffect1;    // e1 fine slide up
         this.eEffects[0x02] = this.eEffect2;    // e2 fine slide down
         this.eEffects[0x03] = this.eEffect3;    // e3 set glissando
@@ -455,7 +455,9 @@ export default class Effects {
     // E-effect functions
     // ==============================
 
-    // E0 is a legacy from MOD file and it's not supported by XM format
+    // E0 is a legacy from MOD file and it's not supported by XM format. Yet it might be invoked if the XM file was converted from MOD file
+    eEffect0(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { 
+    }
 
     eEffect1(firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e1 fine slide up
         if (firstTick) {

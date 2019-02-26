@@ -66,38 +66,38 @@ class XMPlayerApp {
 
             
             let listener = () => {
-                document.body.removeEventListener("mousedown", listener);
-
                 let songToPlay = this.modFiles[(Math.floor(Math.random() * this.modFiles.length))];
 
-                let queryStrSong = this.getParameterByName("song");
+                if(this.player.state != PlayerState.PLAYING){
+                    let queryStrSong = this.getParameterByName("song");
 
-                if(queryStrSong){
-                    queryStrSong += ".xm";
-                    this.modFiles.forEach((file) => {
-                        if(file.name.toLowerCase() == queryStrSong.toLowerCase()){
-                            songToPlay = file;
-                            return;
-                        }
-                    });
-                }
-                
+                    if(queryStrSong){
+                        queryStrSong += ".xm";
+                        this.modFiles.forEach((file) => {
+                            if(file.name.toLowerCase() == queryStrSong.toLowerCase()){
+                                songToPlay = file;
+                                return;
+                            }
+                        });
+                    } 
+                } 
 
                 this.playSong(songToPlay);
 
-                this.player.onReady = () => {
-                    this.recalcFonts();
-                    this.player.play();
-                }
+            };
 
-                this.player.onPlay = () => {
+            this.player.onReady = () => {
+                this.recalcFonts();
+                this.player.play();
+            }
 
-                }
+            this.player.onPlay = () => {
 
-                this.player.onStop = () => {
-                    // switch to the next song
-                    this.playSong(this.modFiles[(Math.floor(Math.random() * this.modFiles.length))]);
-                };
+            }
+
+            this.player.onStop = () => {
+                // switch to the next song
+                this.playSong(this.modFiles[(Math.floor(Math.random() * this.modFiles.length))]);
             };
 
             document.body.addEventListener("mousedown", listener);
@@ -119,7 +119,7 @@ class XMPlayerApp {
     }
 
     private recalcFonts() {
-        let channels = this.player.channelsNum;
+        let channels = Math.min(6, this.player.channelsNum); // max 6 channels to render
         if (channels != 0) {
             let canvasWidth = this.virtualWidth;
             this.fontSize = Math.min(32, 2 * canvasWidth / (channels * this.lettersPerChannel + this.leftBlockLength));
@@ -143,7 +143,7 @@ class XMPlayerApp {
         this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight);
 
         if (this.player.state != PlayerState.PLAYING) {
-            let str = "TOUCH HERE TO PLAY";
+            let str = "TOUCH HERE TO PLAY. TOUCH AGAIN TO GO TO THE NEXT SONG";
             let strLength = str.length;
             let strWidth = this.virtualWidth / (this.fontSize / 2);
             let strHeight = this.virtualHeight / (this.fontSize);
@@ -157,7 +157,7 @@ class XMPlayerApp {
         // render instruments
         for (let i = 0; i < this.player.sampleNum; i++) {
             let sampleName = this.player.getSampleName(i);
-            if (sampleName.length == 0) sampleName = "Unknown sample";
+            if (sampleName.length == 0) sampleName = "--";
             let isNoteOn = false;
 
             for (let c = 0; c < this.player.channelsNum; c++) {
@@ -175,18 +175,20 @@ class XMPlayerApp {
         var pp, pdata;
         pdata = this.player.patternData(this.player.position);
 
-        for (let i = 0; i < (pdata.length / (5 * this.player.channelsNum)); i++) {
+        let channelsToRender = Math.min(6, this.player.channelsNum);
+
+        for (let i = 0; i < (pdata.length / (5 * this.player.channelsNum)); i++) {            
             if (i < (this.player.row - this.markerIndex)) {
                 continue;
             }
 
             pp = i * 5 * this.player.channelsNum;
             pd += hb(i) + "|";
-            for (let c = 0; c < this.player.channelsNum; c++) {
+            for (let c = 0; c < channelsToRender; c++) {
                 pd += notef(pdata[pp + c * 5 + 0], pdata[pp + c * 5 + 1], pdata[pp + c * 5 + 2], pdata[pp + c * 5 + 3], pdata[pp + c * 5 + 4]);
             }
             let isOnMarker = (i == this.player.row);;
-            this.drawString(pd, 32, this.trackerStartIndex + this.markerIndex + i - this.player.row, isOnMarker ? "rgb(255,122,0)" : "rgb(255,255,255)");
+            this.drawString(pd, 32, this.trackerStartIndex + this.markerIndex + i - this.player.row, isOnMarker ? "rgb(0, 129, 255)" : "rgb(255,255,255)");
             pd = "";
         }
     }
