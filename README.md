@@ -1,3 +1,13 @@
-## Work in progress
+## Work in progress: XM PLAYER
 
-But when it's finished, it's gonna be f**\*ing amazing
+Serverless player of XM tracker files.
+
+![XM Player screenshot](docs/screenshot.png)
+
+I will update the documentation soon, don't worry. It's fully operational, though.
+
+Installation:
+* create folder assets/mods and copy your own files (only files with XM extension are supported)
+* npm install
+* npm start
+* connect to localhost:1234
