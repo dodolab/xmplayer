@@ -134,8 +134,6 @@ class XMPlayerApp {
         this.gameTime += dt;
         // update our own logic 
         this.update(dt, this.gameTime);
-        // draw PIXI internal
-        // this.ticker.update(this.gameTime);
         requestAnimationFrame((time) => this.loop(time));
     }
 

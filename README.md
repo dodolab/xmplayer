@@ -1,15 +1,18 @@
 # XM PLAYER
 
-Serverless player for XM tracker files. Contains a simple UI and XM engine, both written in TypeScript.
+Serverless player for XM tracker files. Contains a simple UI and XM engine, both written in *TypeScript*.
+
+Uses Parcel Bundler as a local file server.
 
 **Budget: ~150 hours of work.**
 
 ![XM Player screenshot](docs/screenshot.png)
 
 ## Installation
-* create folder `assets/mods` and move your own files to this directory (only files with XM extension are supported)
+* create folder `assets/mods` and move your own files to this directory (only files with XM extension are supported). 
 * type `npm install`
 * type `npm start`
+* `deploy.js` script is a NodeJS script that will go through all your XM files and create `files.json`. This file will be used by the UI player to select random files to play.
 * connect to `localhost:1234/index.html`
 
 ## Architecture
@@ -34,7 +37,7 @@ Serverless player for XM tracker files. Contains a simple UI and XM engine, both
 
 ## XM File structure
 
-* Not sure if this is 100% correct. Original documentation can be found [here](ftp://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html).
+* Not sure if this is 100% correct. Original documentation can be found here: ftp://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html
 
 ![XM File Structure](docs/xmfile_structure.png)
 
