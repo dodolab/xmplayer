@@ -37,7 +37,7 @@ Uses Parcel Bundler as a local file server.
 
 ## XM File structure
 
-* Not sure if this is 100% correct. Original documentation can be found here: ftp://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html
+* Not sure if this is 100% correct. Original documentation can be found [here.](http://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html)
 
 ![XM File Structure](docs/xmfile_structure.png)
 
