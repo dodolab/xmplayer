@@ -2,6 +2,8 @@
 
 Serverless player for XM tracker files. Contains a simple UI and XM engine, both written in TypeScript.
 
+**Budget: ~150 hours of work.**
+
 ![XM Player screenshot](docs/screenshot.png)
 
 ## Installation
@@ -32,7 +34,7 @@ Serverless player for XM tracker files. Contains a simple UI and XM engine, both
 
 ## XM File structure
 
-* Not sure if this is 100% correct. Original documentation can be found [here.](ftp://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html)
+* Not sure if this is 100% correct. Original documentation can be found [here](ftp://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html).
 
 ![XM File Structure](docs/xmfile_structure.png)
 
