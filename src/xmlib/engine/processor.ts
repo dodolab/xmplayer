@@ -48,7 +48,7 @@ export class SoundProcessor {
             let instrument = channel.instrument;
 
             // kill empty instruments
-            if (channel.noteOn && !instrument.sampleCount) {
+            if (channel.noteOn && !instrument.samplesNum) {
                 channel.noteOn = false;
             }
 
@@ -149,6 +149,8 @@ export class SoundProcessor {
     // process one channel on a row in pattern p, pp is an offset to pattern data
     private processNote(patternIndex: number, ch: number) {
 
+        // 5 data values: (note, instrument, volume, command and parameter)
+        // data is stored in the pattern table sequentially: row1 channel 1, row1 channel 2,..., row2 channel1,..
         let patternDataOffset = 5 * (this.context.row * this.xmFile.channelsNum + ch);
         let pattern = this.xmFile.patterns[patternIndex];
         let note = pattern[patternDataOffset];
@@ -165,7 +167,7 @@ export class SoundProcessor {
             channel.instrumentIndex = instrumentOnRowIndex;
             let instrument = this.xmFile.instruments[instrumentOnRowIndex];
 
-            if (instrument.sampleCount != 0) {
+            if (instrument.samplesNum != 0) {
                 // save sample data and panning
                 sampleIndex = instrument.sampleMap[channel.note];
                 channel.sampleIndex = sampleIndex;

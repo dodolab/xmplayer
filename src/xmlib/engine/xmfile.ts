@@ -33,7 +33,7 @@ export class Instrument {
     samples: Array<Sample> = new Array<Sample>();
     // note to sample index mapper
     sampleMap: Uint8Array =  new Uint8Array(96);
-    sampleCount: number = 0; 
+    samplesNum: number = 0; 
 
     // vibrato
     vibratoDepth: number = 0;

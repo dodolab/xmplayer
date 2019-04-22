@@ -74,6 +74,7 @@ export class XMParser {
             file.patternLength[i] = this.readWord(buffer, this.currentOffset + 5);
             file.patterns[i] = new Uint8Array(file.channelsNum * file.patternLength[i] * 5);
 
+             // data is stored in the pattern table sequentially: row1 channel 1, row1 channel 2,..., row2 channel1,..
             let pattern = file.patterns[i];
 
             // initialize every pattern to defaults prior to unpacking for each channel
@@ -157,9 +158,9 @@ export class XMParser {
                 instrument.name += this.dosToUTF(buffer[this.currentOffset + 4 + j++]);
             }
 
-            instrument.sampleCount = this.readWord(buffer, this.currentOffset + 0x1b);
+            instrument.samplesNum = this.readWord(buffer, this.currentOffset + 0x1b);
 
-            if (instrument.sampleCount != 0) {
+            if (instrument.samplesNum != 0) {
                 // parse samples
                 instrument.sampleHeaderLength = this.readDWord(buffer, this.currentOffset + 0x1d); 
 
@@ -194,8 +195,8 @@ export class XMParser {
         for (let i = 0; i < 12; i++) {
             let volXCoord = this.readWord(buffer, this.currentOffset + 0x81 + i * 4);
             let volYCoord = this.readWord(buffer, this.currentOffset + 0x81 + i * 4 + 2);
+            // TODO.. we are not parsing everything???
             tmpVolEnvelope[i] = new Uint16Array([volXCoord, volYCoord]);
-            // todo.. we are putting last volume into first panning perhaps???!
             let panXCoord = this.readWord(buffer, this.currentOffset + 0xc1 + i * 4);
             let panYCoord = this.readWord(buffer, this.currentOffset + 0xc1 + i * 4 + 2);
             tmpPanEnvelope[i] = new Uint16Array([panXCoord, panYCoord]);
@@ -255,9 +256,9 @@ export class XMParser {
         // ===========================================================
         // sample headers
         this.currentOffset += instrument.headerLength;
-        instrument.samples = new Array(instrument.sampleCount);
+        instrument.samples = new Array(instrument.samplesNum);
 
-        for (let j = 0; j < instrument.sampleCount; j++) {
+        for (let j = 0; j < instrument.samplesNum; j++) {
             let datalen = this.readDWord(buffer, this.currentOffset + 0);
             instrument.samples[j] = new Sample();
             let sample = instrument.samples[j];
@@ -265,7 +266,7 @@ export class XMParser {
             let k = 0;
             while (buffer[this.currentOffset + 0x12 + k] && k < 0x16) sample.name += this.dosToUTF(buffer[this.currentOffset + 0x12 + k++]);
 
-            sample.bits = (buffer[this.currentOffset + 0xe] & 0x10) ? 16 : 8; // sample type (we don't use it, only number of bites) 
+            sample.bits = (buffer[this.currentOffset + 0x0e] & 0x10) ? 16 : 8; // sample type (we don't use it, only number of bites) 
             sample.bps = (sample.bits == 16) ? 2 : 1; // bytes per sample
 
             // sample length and loop points are in BYTES even for 16-bit samples!
@@ -273,15 +274,15 @@ export class XMParser {
             sample.loopStart = this.readDWord(buffer, this.currentOffset + 4) / sample.bps;
             sample.loopLength = this.readDWord(buffer, this.currentOffset + 8) / sample.bps;
             sample.loopEnd = sample.loopStart + sample.loopLength;
-            sample.loopType = buffer[this.currentOffset + 0xe] & 0x03;
-            sample.volume = buffer[this.currentOffset + 0xc];
+            sample.loopType = buffer[this.currentOffset + 0x0e] & 0x03;
+            sample.volume = buffer[this.currentOffset + 0x0c];
 
             // finetune and seminote tuning (-128..+127)
             // +-127 is one half-tone
-            if (buffer[this.currentOffset + 0xd] < 128) {
-                sample.fineTune = buffer[this.currentOffset + 0xd];
+            if (buffer[this.currentOffset + 0x0d] < 128) {
+                sample.fineTune = buffer[this.currentOffset + 0x0d];
             } else {
-                sample.fineTune = buffer[this.currentOffset + 0xd] - 256;
+                sample.fineTune = buffer[this.currentOffset + 0x0d] - 256;
             }
             if (buffer[this.currentOffset + 0x10] < 128) {
                 sample.relativeNote = buffer[this.currentOffset + 0x10];
@@ -289,14 +290,14 @@ export class XMParser {
                 sample.relativeNote = buffer[this.currentOffset + 0x10] - 256;
             }
 
-            sample.panning = buffer[this.currentOffset + 0xf];
+            sample.panning = buffer[this.currentOffset + 0x0f];
 
             this.currentOffset += instrument.sampleHeaderLength;
         }
 
         // ===========================================================
         // sample data (convert to signed float32), stored as delta compressed data
-        for (let j = 0; j < instrument.sampleCount; j++) {
+        for (let j = 0; j < instrument.samplesNum; j++) {
             let sample = instrument.samples[j];
             sample.data = new Float32Array(sample.length);
             let c = 0;
