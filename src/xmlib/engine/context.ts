@@ -19,8 +19,8 @@ export class Channel {
 	// speed of a playing sample
 	sampleSpeed = 0;
 
-	sample: Sample = null;
-	instrument: Instrument = null;
+	sample?: Sample = undefined;
+	instrument?: Instrument = undefined;
 
 	voicePeriodChanged = false;
 	// indicator if the note is enabled
@@ -117,7 +117,7 @@ export class XMContext {
 
 	globalVolSlide = 0;
 	channels: Channel[] = [];
-	sampleRate: number;
+	sampleRate = 0;
 
 	amigaPeriods = false;
 }

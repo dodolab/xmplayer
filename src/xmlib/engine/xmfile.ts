@@ -6,7 +6,7 @@ export class Sample {
 	bits = 8;
 	// beats per second, TODO not used
 	bps = 1;
-	data: Float32Array = null;
+	data: Float32Array;
 	// fineTune = -128..+127 (-128 = -1 halftone, +127 = +127/128 halftones)
 	fineTune = 0;
 	// length of the sample in number of beats
@@ -94,8 +94,8 @@ export class XMFile {
 	// ordering table for patterns
 	patternOrderTable: Array<number>;
 	// patterns, ordered by pattern table
-	patterns: Array<Uint8Array> = null;
+	patterns: Array<Uint8Array>;
 	// length of every pattern (number of rows) at appropriate index
-	patternLength: Array<number> = null;
-	instruments: Array<Instrument> = null;
+	patternLength: Array<number>;
+	instruments: Array<Instrument>;
 }

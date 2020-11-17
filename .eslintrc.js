@@ -33,9 +33,11 @@ module.exports = {
 		"@typescript-eslint/no-empty-function": "off",
 		"@typescript-eslint/no-explicit-any": "off",
 		"@typescript-eslint/no-this-alias": "off",
+		"@typescript-eslint/no-unused-vars": "off",
 		"@typescript-eslint/prefer-interface": "off",
 		"@typescript-eslint/no-unsafe-member-access": "off",
 		"@typescript-eslint/no-unsafe-assignment": "off",
+		"@typescript-eslint/unbound-method": "off",
 		"quote-props": [
 			"error",
 			"as-needed"
@@ -67,6 +69,7 @@ module.exports = {
 				],
 			},
 		],
-		"no-unused-vars": "off"
+		"no-unused-vars": "off",
+		"no-use-before-define": "off"
 	},
 }

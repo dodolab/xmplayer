@@ -116,30 +116,24 @@ export default class Effects {
 	volEffect80 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // 80-8f fine vol slide down
 		if (firstTick) {
 			channel.voiceVolume = Math.max(0, channel.voiceVolume - param)
-		} else {
-
 		}
 	}
 
 	volEffect90 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // 90-9f fine vol slide up
 		if (firstTick) {
 			channel.voiceVolume = Math.min(64, channel.voiceVolume + param)
-		} else {
-
 		}
 	}
 
 	volEffectA0 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // a0-af set vibrato speed
 		if (firstTick) {
 			channel.vibratoSpeed = param
-		} else {
-
 		}
 	}
 
 	volEffectB0 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // b0-bf vibrato
 		if (firstTick) {
-			if (param != 0) channel.vibratoDepth = param
+			if (param) channel.vibratoDepth = param
 			effects.effect4(false, channel, context, effects) // todo check if really not first tick
 		} else {
 			effects.effect4(false, channel, context, effects) // same as effect column vibrato on ticks 1+
@@ -149,8 +143,6 @@ export default class Effects {
 	volEffectC0 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects, param: number) { // c0-cf set panning
 		if (firstTick) {
 			channel.pan = (param & 0x0f) / 15.0 // percentage of 0xF
-		} else {
-
 		}
 	}
 
@@ -186,11 +178,11 @@ export default class Effects {
 		if (firstTick) {
 			channel.arpeggio = channel.param
 		} else {
-			if (channel.param != 0) {
+			if (channel.param && channel.sample) {
 				let apn = channel.note
 				// note is in format (octave|note, e.g. 3C for C3)
-				if ((context.tick % 3) == 1) apn += (channel.arpeggio >> 4) // second tick
-				if ((context.tick % 3) == 2) apn += (channel.arpeggio & 0x0f) // third tick
+				if ((context.tick % 3) === 1) apn += (channel.arpeggio >> 4) // second tick
+				if ((context.tick % 3) === 2) apn += (channel.arpeggio & 0x0f) // third tick
 
 				const relativeNote = channel.sample.relativeNote
 				const fineTune = channel.sample.fineTune
@@ -352,7 +344,7 @@ export default class Effects {
 			if (channel.param > 32) {
 				context.currentBpm = channel.param
 			} else {
-				if (channel.param != 0) context.currentSpeed = channel.param
+				if (channel.param) context.currentSpeed = channel.param
 			}
 		} else {
 			// TODO +1 tick impl
@@ -387,7 +379,7 @@ export default class Effects {
 	effectK (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // k key off
 		if (firstTick) {
 			channel.noteOn = false
-			if (!(channel.instrument.volFlags & 1)) channel.voiceVolume = 0
+			if (channel.instrument && !(channel.instrument.volFlags & 1)) channel.voiceVolume = 0
 		} else {
 			// TODO +1 tick impl
 		}
@@ -397,8 +389,6 @@ export default class Effects {
 		if (firstTick) {
 			channel.volEnvPos = channel.param
 			channel.panEnvPos = channel.param
-		} else {
-
 		}
 	}
 
@@ -497,7 +487,7 @@ export default class Effects {
 	eEffect6 (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // e6 loop pattern
 		if (firstTick) {
 			if (channel.param & 0x0f) {
-				if (context.loopCount != 0) {
+				if (context.loopCount) {
 					context.loopCount--
 					context.flags |= XM_FLAG_LOOP_PATTERN
 				} else {
@@ -525,7 +515,7 @@ export default class Effects {
 		if (firstTick) {
 			// TODO first tick impl
 		} else {
-			if (context.tick % (channel.param & 0x0f) == 0) {
+			if (context.tick % (channel.param & 0x0f) === 0) {
 				channel.samplePos = 0
 				channel.playDir = 1
 
@@ -559,13 +549,13 @@ export default class Effects {
 		if (firstTick) {
 			// TODO first tick impl
 		} else {
-			if (context.tick == (channel.param & 0x0f)) { channel.voiceVolume = 0 }
+			if (context.tick === (channel.param & 0x0f)) { channel.voiceVolume = 0 }
 		}
 	}
 
 	eEffectD (firstTick: boolean, channel: Channel, context: XMContext, effects: Effects) { // ed note delay
 		// same for all ticks
-		if (context.tick == (channel.param & 0x0f)) {
+		if (context.tick === (channel.param & 0x0f)) {
 			// TODO this shall be implemented directly in the player
 			// player.processNote(player.modFile.patternOrderTable[player.position], ch);
 		}

@@ -2,8 +2,8 @@ import { XMContext, Channel } from './context'
 import { XMFile } from './xmfile'
 
 export class Mixer {
-	context: XMContext = null;
-	xmFile: XMFile = null;
+	context: XMContext;
+	xmFile: XMFile;
 
 	// stereo output
 	outputLeft: number;
@@ -25,7 +25,7 @@ export class Mixer {
 
 			// add channel output to left/right master outputs
 			if (channel.noteOn ||
-				((instrument.volFlags & 1) && !channel.noteOn && channel.fadeOutPos) ||
+				((instrument && instrument.volFlags & 1) && !channel.noteOn && channel.fadeOutPos) ||
 				(!channel.noteOn && channel.volRamp < 1.0)
 			) {
 				const sampleData = this.mixSample(channel)
@@ -48,7 +48,7 @@ export class Mixer {
 
 		const sample = channel.sample
 
-		if (sample.length > channel.samplePos) {
+		if (sample && sample.length > channel.samplePos) {
 			// interpolate towards current sample
 			let samplePos = Math.floor(channel.samplePos)
 			sampleData = sample.data[samplePos]
@@ -86,16 +86,16 @@ export class Mixer {
 		// advance sample position and check for loop or end
 		const oldpos = channel.samplePos
 		channel.samplePos += channel.playDir * channel.sampleSpeed
-		if (channel.playDir == 1) {
+		if (channel.playDir === 1) {
 			if (Math.floor(channel.samplePos) > Math.floor(oldpos)) channel.lastSample = sampleData
 		} else {
 			if (Math.floor(channel.samplePos) < Math.floor(oldpos)) channel.lastSample = sampleData
 		}
 
-		if (sample.loopType) {
-			if (sample.loopType == 2) {
+		if (sample && sample.loopType) {
+			if (sample.loopType === 2) {
 				// pingpong loop (when we are playing one part of a sample back and forth)
-				if (channel.playDir == -1) {
+				if (channel.playDir === -1) {
 					// bounce off from start?
 					if (channel.samplePos <= sample.loopStart) {
 						channel.samplePos += (sample.loopStart - channel.samplePos)

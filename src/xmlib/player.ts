@@ -34,10 +34,10 @@ export default class XMPlayer {
 	onPlay: () => void;
 	onStop: () => void;
 
-	private mixerNode: ScriptProcessorNode = null;
-	private lowpassNode: BiquadFilterNode = null;
-	private filterNode: BiquadFilterNode = null;
-	private xmFile: XMFile = null;
+	private mixerNode: ScriptProcessorNode;
+	private lowpassNode: BiquadFilterNode;
+	private filterNode: BiquadFilterNode;
+	private xmFile: XMFile;
 
 	private sampleRate: number;
 
@@ -125,11 +125,11 @@ export default class XMPlayer {
 
 	// play loaded and parsed module with webaudio context
 	play (): boolean {
-		if (this._state == PlayerState.NONE || this._state == PlayerState.LOADING) {
+		if (this._state === PlayerState.NONE || this._state === PlayerState.LOADING) {
 			return false
 		}
 
-		if (this._state == PlayerState.PAUSED) {
+		if (this._state === PlayerState.PAUSED) {
 			this._state = PlayerState.PLAYING
 			return true
 		}
@@ -148,9 +148,9 @@ export default class XMPlayer {
 
 	// pause playback
 	pause () {
-		if (this._state == PlayerState.PAUSED) {
+		if (this._state === PlayerState.PAUSED) {
 			this._state = PlayerState.PLAYING
-		} else if (this.state == PlayerState.PLAYING) {
+		} else if (this.state === PlayerState.PLAYING) {
 			this._state = PlayerState.PAUSED
 		}
 	}
@@ -209,6 +209,7 @@ export default class XMPlayer {
 	// ger current pattern number
 	currentPattern (): number {
 		if (this.tracker) return this.xmFile.patternOrderTable[this.tracker.context.position]
+		return 0
 	}
 
 	// check if a channel has a note on
@@ -235,7 +236,7 @@ export default class XMPlayer {
 		for (let i = 0; i < xmFile.patternLength[pn]; i++) {
 			for (let c = 0; c < xmFile.channelsNum; c++) {
 				if (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] < 97) { patt[i * 5 * xmFile.channelsNum + c * 5 + 0] = (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] % 12) | (Math.floor(patt[i * 5 * xmFile.channelsNum + c * 5 + 0] / 12) << 4) }
-				if (patt[i * 5 * xmFile.channelsNum + c * 5 + 3] == 255) patt[i * 5 * xmFile.channelsNum + c * 5 + 3] = 0x2e
+				if (patt[i * 5 * xmFile.channelsNum + c * 5 + 3] === 255) patt[i * 5 * xmFile.channelsNum + c * 5 + 3] = 0x2e
 				else {
 					if (patt[i * 5 * xmFile.channelsNum + c * 5 + 3] < 0x0a) {
 						patt[i * 5 * xmFile.channelsNum + c * 5 + 3] += 0x30
@@ -255,7 +256,8 @@ export default class XMPlayer {
 
 	// create the web audio context
 	private initAudio () {
-		const context = new ((<any>window).AudioContext || (<any>window).webkitAudioContext)()
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		const context = new ((<any>window).AudioContext || (<any>window).webkitAudioContext)() as AudioContext
 		this.sampleRate = context.sampleRate
 
 		// Amiga 500 fixed filter at 6kHz. WebAudio lowpass is 12dB/oct, whereas
@@ -271,8 +273,9 @@ export default class XMPlayer {
 
 		// mixer
 		const bufferlen = (this.sampleRate > 44100) ? 4096 : 2048
-		if (typeof context.createJavaScriptNode === 'function') {
-			this.mixerNode = context.createJavaScriptNode(bufferlen, 1, 2)
+		if (typeof (context as any).createJavaScriptNode === 'function') {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			this.mixerNode = (context as any).createJavaScriptNode(bufferlen, 1, 2) as ScriptProcessorNode
 		} else {
 			this.mixerNode = context.createScriptProcessor(bufferlen, 1, 2)
 		}
@@ -292,9 +295,9 @@ export default class XMPlayer {
 		const bufs = [ape.outputBuffer.getChannelData(0), ape.outputBuffer.getChannelData(1)]
 		const buflen = ape.outputBuffer.length
 
-		if (this.initDelay == 0) {
+		if (this.initDelay === 0) {
 			// return a buffer of silence if not playing
-			if (this.state != PlayerState.PLAYING || this.endOfSong) {
+			if (this.state !== PlayerState.PLAYING || this.endOfSong) {
 				// todo set only once!
 				for (let s = 0; s < buflen; s++) {
 					bufs[0][s] = 0.0
@@ -308,7 +311,7 @@ export default class XMPlayer {
 
 			if (this.tracker.context.endOfSong && this.repeat) {
 				this.tracker.repeat()
-			} else if (this.tracker.context.endOfSong && this.state == PlayerState.PLAYING) { this.stop() }
+			} else if (this.tracker.context.endOfSong && this.state === PlayerState.PLAYING) { this.stop() }
 		} else {
 			// delay.. anyway, return silent buffer (TODO refactor this)
 			for (let s = 0; s < buflen; s++) {
@@ -332,9 +335,9 @@ export default class XMPlayer {
 			outp[1] = bufs[1][s]
 
 			// a more headphone-friendly stereo separation
-			if (this.sepMode != StereoSepMode.STANDARD) {
+			if (this.sepMode !== StereoSepMode.STANDARD) {
 				const t = outp[0]
-				if (this.sepMode == StereoSepMode.MONO) { // mono
+				if (this.sepMode === StereoSepMode.MONO) { // mono
 					outp[0] = outp[0] * 0.5 + outp[1] * 0.5
 					outp[1] = outp[1] * 0.5 + t * 0.5
 				} else { // narrow stereo

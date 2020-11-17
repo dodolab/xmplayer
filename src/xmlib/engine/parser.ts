@@ -16,16 +16,16 @@ export class XMParser {
 		return file
 	}
 
-	private parseHeader (buffer: Uint8Array, file: XMFile): boolean {
+	private parseHeader (buffer: Uint8Array, file: XMFile) {
 		this.currentOffset = 0x00
 
 		// check xm signature, type and tracker version
 		let signature = ''
 		while (this.currentOffset < 0x11) signature += String.fromCharCode(buffer[this.currentOffset++])
-		if (signature != 'Extended Module: ') return false
+		if (signature !== 'Extended Module: ') return false
 
 		// ID=0x1A
-		if (buffer[0x25] != 0x1a) return false
+		if (buffer[0x25] !== 0x1a) return false
 
 		const trackerVersion = this.readWord(buffer, 0x3a)
 		if (trackerVersion < 0x0104) return false // older versions not currently supported
@@ -42,7 +42,7 @@ export class XMParser {
 		file.channelsNum = this.readWord(buffer, this.currentOffset + 8)
 		file.patternsNum = this.readWord(buffer, this.currentOffset + 10)
 		file.instrumentsNum = this.readWord(buffer, this.currentOffset + 12)
-		file.amigaPeriods = this.readWord(buffer, this.currentOffset + 14) == 1
+		file.amigaPeriods = this.readWord(buffer, this.currentOffset + 14) === 1 // amiga periods are either enabled or disabled
 		file.initSpeed = this.readWord(buffer, this.currentOffset + 16)
 		file.initBPM = this.readWord(buffer, this.currentOffset + 18)
 	}
@@ -115,7 +115,7 @@ export class XMParser {
 				// remap note to st3-style, 255=no note, 254=note off
 				if (pattern[k + 0] >= 0x61) {
 					pattern[k + 0] = 0xFE // note off
-				} else if (pattern[k + 0] == 0) {
+				} else if (pattern[k + 0] === 0) {
 					pattern[k + 0] = 0xFF // no note
 				} else {
 					pattern[k + 0]--
@@ -130,7 +130,7 @@ export class XMParser {
 
 				// command 255=no command
 				// we need to remap it because value of 0 is also used for arpeggio
-				if (pattern[k + 3] == 0 && pattern[k + 4] == 0) pattern[k + 3] = 255
+				if (pattern[k + 3] === 0 && pattern[k + 4] === 0) pattern[k + 3] = 255
 			}
 
 			// unpack next pattern
@@ -156,7 +156,7 @@ export class XMParser {
 
 			instrument.samplesNum = this.readWord(buffer, this.currentOffset + 0x1b)
 
-			if (instrument.samplesNum != 0) {
+			if (instrument.samplesNum) {
 				// parse samples
 				instrument.sampleHeaderLength = this.readDWord(buffer, this.currentOffset + 0x1d)
 
@@ -186,8 +186,8 @@ export class XMParser {
 
 	private parseInstrumentEnvelopes (buffer: Uint8Array, instrument: Instrument) {
 		// 48 bytes per envelope -> 12 pairs of 16bit-words (X,Y coords)
-		const tmpVolEnvelope = new Array(12) // volume envelope
-		const tmpPanEnvelope = new Array(12) // panning envelope
+		const tmpVolEnvelope = new Array<Uint16Array>(12) // volume envelope
+		const tmpPanEnvelope = new Array<Uint16Array>(12) // panning envelope
 		for (let i = 0; i < 12; i++) {
 			const volXCoord = this.readWord(buffer, this.currentOffset + 0x81 + i * 4)
 			const volYCoord = this.readWord(buffer, this.currentOffset + 0x81 + i * 4 + 2)
@@ -213,7 +213,7 @@ export class XMParser {
 				let p = 1
 				let delta: number
 				while (tmpVolEnvelope[p][0] < j && p < 11) p++
-				if (tmpVolEnvelope[p][0] == tmpVolEnvelope[p - 1][0]) {
+				if (tmpVolEnvelope[p][0] === tmpVolEnvelope[p - 1][0]) {
 					delta = 0
 				} else {
 					delta = (tmpVolEnvelope[p][1] - tmpVolEnvelope[p - 1][1]) / (tmpVolEnvelope[p][0] - tmpVolEnvelope[p - 1][0])
@@ -234,7 +234,7 @@ export class XMParser {
 				let p = 1
 				let delta: number
 				while (tmpPanEnvelope[p][0] < j && p < 11) p++
-				if (tmpPanEnvelope[p][0] == tmpPanEnvelope[p - 1][0]) {
+				if (tmpPanEnvelope[p][0] === tmpPanEnvelope[p - 1][0]) {
 					delta = 0
 				} else {
 					delta = (tmpPanEnvelope[p][1] - tmpPanEnvelope[p - 1][1]) / (tmpPanEnvelope[p][0] - tmpPanEnvelope[p - 1][0])
@@ -263,7 +263,7 @@ export class XMParser {
 			while (buffer[this.currentOffset + 0x12 + k] && k < 0x16) sample.name += this.dosToUTF(buffer[this.currentOffset + 0x12 + k++])
 
 			sample.bits = (buffer[this.currentOffset + 0x0e] & 0x10) ? 16 : 8 // sample type (we don't use it, only number of bites)
-			sample.bps = (sample.bits == 16) ? 2 : 1 // bytes per sample
+			sample.bps = (sample.bits === 16) ? 2 : 1 // bytes per sample
 
 			// sample length and loop points are in BYTES even for 16-bit samples!
 			sample.length = datalen / sample.bps
@@ -297,7 +297,7 @@ export class XMParser {
 			const sample = instrument.samples[j]
 			sample.data = new Float32Array(sample.length)
 			let c = 0
-			if (sample.bits == 16) {
+			if (sample.bits === 16) {
 				// 16 bits per sample
 				for (let k = 0; k < sample.length; k++) {
 					c += this.readSignedWord(buffer, this.currentOffset + k * 2)

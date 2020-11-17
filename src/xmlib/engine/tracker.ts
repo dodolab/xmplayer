@@ -7,8 +7,8 @@ import { Mixer } from './mixer'
  * Tracker for advancing the song
  */
 export default class Tracker {
-	xmFile: XMFile = null;
-	context: XMContext = null;
+	xmFile: XMFile;
+	context: XMContext;
 	processor: SoundProcessor = new SoundProcessor();
 	mixer: Mixer = new Mixer();
 
@@ -19,8 +19,8 @@ export default class Tracker {
 		this.context.sampleRate = sampleRate
 
 		// take values from xmFile if not zero
-		if (this.xmFile.initSpeed != 0) this.context.currentSpeed = this.xmFile.initSpeed
-		if (this.xmFile.initBPM != 0) this.context.currentBpm = this.xmFile.initBPM
+		if (this.xmFile.initSpeed !== 0) this.context.currentSpeed = this.xmFile.initSpeed
+		if (this.xmFile.initBPM !== 0) this.context.currentBpm = this.xmFile.initBPM
 
 		this.context.amigaPeriods = this.xmFile.amigaPeriods
 

@@ -1,25 +1,20 @@
 
 // codepage 128x192, 16x16 -> 8x12px
 
-import * as PIXI from 'pixi.js'
 import XMPlayer, { PlayerState } from '../xmlib/player'
 
-class ModFile {
+type ModFile = {
 	name: string;
 	size: number;
 	path: string;
 }
 
 class XMPlayerApp {
-	app: PIXI.Application = null;
 	lastTime = 0;
 	gameTime = 0;
-	ticker: PIXI.ticker.Ticker = null;
 	player: XMPlayer;
 	ctx: CanvasRenderingContext2D;
 	canvas: HTMLCanvasElement;
-
-	gfx: PIXI.Graphics;
 
 	fontSize = 32;
 	lettersPerChannel = 14;
@@ -32,7 +27,7 @@ class XMPlayerApp {
 
 	modFiles: ModFile[];
 
-	private getParameterByName (name: string): string {
+	private getParameterByName (name: string): string | null {
 		const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search)
 		return match && decodeURIComponent(match[1].replace(/\+/g, ' '))
 	}
@@ -48,7 +43,7 @@ class XMPlayerApp {
 
 			this.canvas = <HTMLCanvasElement>document.getElementById('player')
 
-			this.ctx = this.canvas.getContext('2d')
+			this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
 
 			// set fix size and set scale
 			this.canvas.height = this.virtualHeight
@@ -57,7 +52,7 @@ class XMPlayerApp {
 			this.player = new XMPlayer()
 			resizeCanvas(this.canvas, this.virtualWidth, this.virtualHeight)
 			this.recalcFonts()
-			this.ctx.font = this.fontSize + 'px VGA'
+			this.ctx.font = `${this.fontSize}px VGA`
 
 			window.addEventListener('resize', () => {
 				resizeCanvas(this.canvas, this.virtualWidth, this.virtualHeight)
@@ -67,13 +62,13 @@ class XMPlayerApp {
 			const listener = () => {
 				let songToPlay = this.modFiles[(Math.floor(Math.random() * this.modFiles.length))]
 
-				if (this.player.state != PlayerState.PLAYING) {
-					let queryStrSong = this.getParameterByName('song')
+				if (this.player.state !== PlayerState.PLAYING) {
+					const queryStrSong = this.getParameterByName('song')
 
-					if (queryStrSong) {
-						queryStrSong += '.xm'
+					if (queryStrSong !== null) {
+						const songFile = `${queryStrSong}.xm`
 						this.modFiles.forEach((file) => {
-							if (file.name.toLowerCase() == queryStrSong.toLowerCase()) {
+							if (file.name.toLowerCase() === songFile.toLowerCase()) {
 								songToPlay = file
 							}
 						})
@@ -117,10 +112,10 @@ class XMPlayerApp {
 
 	private recalcFonts () {
 		const channels = Math.min(6, this.player.channelsNum) // max 6 channels to render
-		if (channels != 0) {
+		if (channels) {
 			const canvasWidth = this.virtualWidth
 			this.fontSize = Math.min(32, 2 * canvasWidth / (channels * this.lettersPerChannel + this.leftBlockLength))
-			this.ctx.font = this.fontSize + 'px VGA'
+			this.ctx.font = `${this.fontSize}px VGA`
 		}
 	}
 
@@ -136,7 +131,7 @@ class XMPlayerApp {
 	private update (delta: number, absolute: number) {
 		this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight)
 
-		if (this.player.state != PlayerState.PLAYING) {
+		if (this.player.state !== PlayerState.PLAYING) {
 			const str = 'TOUCH HERE TO PLAY. TOUCH AGAIN TO GO TO THE NEXT SONG'
 			const strLength = str.length
 			const strWidth = this.virtualWidth / (this.fontSize / 2)
@@ -151,12 +146,12 @@ class XMPlayerApp {
 		// render instruments
 		for (let i = 0; i < this.player.sampleNum; i++) {
 			let sampleName = this.player.getSampleName(i)
-			if (sampleName.length == 0) sampleName = '--'
+			if (!sampleName.length) sampleName = '--'
 			let isNoteOn = false
 
 			for (let c = 0; c < this.player.channelsNum; c++) {
 				const smp = this.player.currentSample(c)
-				if (this.player.isNoteOn(c) && smp == i) {
+				if (this.player.isNoteOn(c) && smp === i) {
 					isNoteOn = true
 					break
 				}
@@ -166,8 +161,8 @@ class XMPlayerApp {
 		}
 
 		let pd = ''
-		let pp, pdata
-		pdata = this.player.patternData(this.player.position)
+		let pp: number
+		const pdata = this.player.patternData(this.player.position)
 
 		const channelsToRender = Math.min(6, this.player.channelsNum)
 
@@ -181,7 +176,7 @@ class XMPlayerApp {
 			for (let c = 0; c < channelsToRender; c++) {
 				pd += notef(pdata[pp + c * 5 + 0], pdata[pp + c * 5 + 1], pdata[pp + c * 5 + 2], pdata[pp + c * 5 + 3], pdata[pp + c * 5 + 4])
 			}
-			const isOnMarker = (i == this.player.row)
+			const isOnMarker = (i === this.player.row)
 			this.drawString(pd, 32, this.trackerStartIndex + this.markerIndex + i - this.player.row, isOnMarker ? 'rgb(0, 129, 255)' : 'rgb(255,255,255)')
 			pd = ''
 		}
@@ -200,23 +195,23 @@ const volumeCommands = ['m', 'v', '^', '-', '+', 's', '~', 'p', '&lt;', '&gt;'] 
 // parameter
 // channelsnum
 function notef (note: number, sample: number, vol: number, command: number, param: number) {
-	function pattNote (n) { return (n == 254) ? '===' : (notes[n & 0x0f] + (n >> 4)) }
+	function pattNote (n) { return (n === 254) ? '===' : `${notes[n & 0x0f]}${((n >> 4))}` }
 	function pattVol (v) { return (v <= 0x40) ? hb(v) : (volumeCommands[(v - 0x50) >> 4] + hn(v & 0x0f)) }
 
 	return ((note < 255) ? (pattNote(note) + ' ') : ('... ')) + (sample ? (hb(sample) + ' ') : ('.. ')) +
-		((vol != 255) ? (pattVol(vol) + ' ') : ('.. ')) + ((command != 0x2e) ? (String.fromCharCode(command) + hb(param)) : '...') + '|'
+		((vol !== 255) ? (pattVol(vol) + ' ') : ('.. ')) + ((command !== 0x2e) ? (String.fromCharCode(command) + hb(param)) : '...') + '|'
 }
 
-function hn (n) {
+function hn (n: number | undefined) {
 	if (typeof n === 'undefined') return '0'
 	const s = (n & 0x0f).toString(16)
 	return s.toUpperCase()
 }
 
-function hb (n) {
+function hb (n: number | undefined) {
 	if (typeof n === 'undefined') return '00'
 	let s = n.toString(16)
-	if (s.length == 1) s = '0' + s
+	if (s.length === 1) s = '0' + s
 	return s.toUpperCase()
 }
 
@@ -228,10 +223,10 @@ function resizeCanvas (canvas: HTMLCanvasElement, virtualWidth: number, virtualH
 		scale = window.innerWidth / virtualWidth
 	}
 
-	const transform = 'scale(' + scale + ')'
+	const transform = `scale(${scale})`
 	canvas.style.setProperty('MozTransform', transform)
 	canvas.style.setProperty('transform', transform)
 	canvas.style.setProperty('WebkitTransform', transform)
-	canvas.style.setProperty('top', ((scale - 1) * virtualHeight / 2) + 'px')
-	canvas.style.setProperty('left', ((scale - 1) * virtualWidth / 2 + (window.innerWidth - virtualWidth * scale) / 2) + 'px')
+	canvas.style.setProperty('top', `${((scale - 1) * virtualHeight / 2)}px`)
+	canvas.style.setProperty('left', `${((scale - 1) * virtualWidth / 2 + (window.innerWidth - virtualWidth * scale) / 2)}px`)
 }

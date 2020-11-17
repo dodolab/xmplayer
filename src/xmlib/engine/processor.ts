@@ -1,5 +1,5 @@
 import { XMContext, XM_FLAG_NEW_ROW } from './context'
-import { XMFile } from './xmfile'
+import { Instrument, XMFile } from './xmfile'
 import { calcPeriod } from './utils'
 import Effects from './effects'
 
@@ -8,8 +8,8 @@ import Effects from './effects'
  */
 export class SoundProcessor {
 	effects: Effects = new Effects();
-	context: XMContext = null;
-	xmFile: XMFile = null;
+	context: XMContext;
+	xmFile: XMFile;
 
 	public initialize (context: XMContext, xmFile: XMFile) {
 		this.context = context
@@ -38,19 +38,19 @@ export class SoundProcessor {
 				channel.command = command
 				channel.param = param
 				// if not note delay effect, process note
-				if (!(command == 0x0e && (param & 0xf0) == 0xd0)) {
+				if (!(command === 0x0e && (param & 0xf0) === 0xd0)) {
 					this.processNote(patternIndex, ch)
 				}
 			}
 
-			const instrument = channel.instrument
+			const instrument = channel.instrument as Instrument
 
 			// kill empty instruments
 			if (channel.noteOn && !instrument.samplesNum) {
 				channel.noteOn = false
 			}
 
-			const firstTick = this.context.tick == 0
+			const firstTick = this.context.tick === 0
 
 			// volume >=0x50 is an index into volume effect table
 			if (volume >= 0x50 && volume < 0xf0) {
@@ -65,7 +65,7 @@ export class SoundProcessor {
 			}
 
 			// recalc sample speed if voiceperiod has changed
-			if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod != 0) {
+			if ((channel.voicePeriodChanged || this.context.flags & XM_FLAG_NEW_ROW) && channel.voicePeriod !== 0) {
 				let frequency: number
 				// xmp plays Protracker and Fast Tracker II modules at standard PAL rate of
 				// 7093789.2 / (428 * 2) = 8287.137 for middle C
@@ -131,7 +131,7 @@ export class SoundProcessor {
 			channel.finalPan = channel.pan + (instrument.panEnvelope[channel.panEnvPos] - 0.5) * (0.5 * Math.abs(channel.pan - 0.5)) * 2.0
 
 			// setup volramp if voice volume changed
-			if (channel.oldFinalVolume != channel.finalVolume) {
+			if (channel.oldFinalVolume !== channel.finalVolume) {
 				channel.volRampFrom = channel.oldFinalVolume
 				channel.volRamp = 0.0
 			}
@@ -158,12 +158,12 @@ export class SoundProcessor {
 		const channel = this.context.channels[ch]
 
 		// index is -1 if the instrument is undefined
-		if (instrumentOnRowIndex != -1 && instrumentOnRowIndex < this.xmFile.instruments.length) {
+		if (instrumentOnRowIndex !== -1 && instrumentOnRowIndex < this.xmFile.instruments.length) {
 			// save instrument index into channel entity for later use
 			channel.instrumentIndex = instrumentOnRowIndex
 			const instrument = this.xmFile.instruments[instrumentOnRowIndex]
 
-			if (instrument.samplesNum != 0) {
+			if (instrument.samplesNum) {
 				// save sample data and panning
 				sampleIndex = instrument.sampleMap[channel.note]
 				channel.sampleIndex = sampleIndex
@@ -183,7 +183,7 @@ export class SoundProcessor {
 		channel.instrument = instrument
 
 		// 0xFE is note off, 0xFF is no note
-		if (note == 0xFE) { // this is our special value for arpeggio effect with 0 value in order to save performance
+		if (note === 0xFE) { // this is our special value for arpeggio effect with 0 value in order to save performance
 			channel.noteOn = false // note off
 			if (!(instrument.volFlags & 1)) channel.voiceVolume = 0
 		} else if (note < 0xFE) {
@@ -197,7 +197,7 @@ export class SoundProcessor {
 			const period = calcPeriod(relativeNote, sample.fineTune, this.xmFile.amigaPeriods)
 
 			// porta to note, porta + volslide
-			const isPorta = ((channel.command != 0x03) && (channel.command != 0x05))
+			const isPorta = ((channel.command !== 0x03) && (channel.command !== 0x05))
 
 			if (isPorta) {
 				channel.note = note
@@ -206,7 +206,7 @@ export class SoundProcessor {
 			}
 
 			// restart values for porta if playing and for the beginning of the row if not playing
-			if ((channel.noteOn && isPorta) || (!channel.noteOn && instrumentOnRowIndex != -1)) {
+			if ((channel.noteOn && isPorta) || (!channel.noteOn && instrumentOnRowIndex !== -1)) {
 				channel.samplePos = 0
 				channel.playDir = 1
 
