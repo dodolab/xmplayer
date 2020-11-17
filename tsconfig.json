@@ -1,13 +1,38 @@
 {
-    "compilerOptions": {
-      "target": "es5",    
-      "lib": ["es6", "dom"], 
-      "module": "commonJS", 
-      "outDir": "./www",    
-      "downlevelIteration": true 
-    },
-    "include": ["./src/*"],
-    "exclude": [
-      "node_modules"
-    ]
-  }
+	"compilerOptions": {
+		"allowJs": true,
+		"target": "es5",
+		"module": "esnext",
+		"lib": [
+			"esnext",
+			"DOM"
+		],
+		"declaration": true,
+		"declarationMap": true,
+		"strict": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"strictPropertyInitialization": true,
+		"noImplicitThis": true,
+		"alwaysStrict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"moduleResolution": "node",
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"resolveJsonModule": true,
+		"noEmit": true,
+		"noImplicitAny": false,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"baseUrl": "./",
+	},
+	"include": [
+		"types/",
+		"src/"
+	]
+}
