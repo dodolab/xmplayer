@@ -4,7 +4,6 @@ import { XMParser } from './engine/parser'
 import { XM_FLAG_RECALC_SPEED } from './engine/context'
 
 export enum PlayerState {
-	LOADING,
 	READY,
 	PLAYING,
 	PAUSED,
@@ -37,7 +36,7 @@ export default class XMPlayer {
 	private mixerNode: ScriptProcessorNode;
 	private lowpassNode: BiquadFilterNode;
 	private filterNode: BiquadFilterNode;
-	private xmFile: XMFile;
+	private currentFile: XMFile;
 
 	private sampleRate: number;
 
@@ -49,19 +48,19 @@ export default class XMPlayer {
 	}
 
 	get title () {
-		return this.xmFile ? this.xmFile.title : ''
+		return this.currentFile ? this.currentFile.title : ''
 	}
 
 	get songLength () {
-		return this.xmFile ? this.xmFile.songLength : 0
+		return this.currentFile ? this.currentFile.songLength : 0
 	}
 
 	get channelsNum () {
-		return this.xmFile ? this.xmFile.channelsNum : 0
+		return this.currentFile ? this.currentFile.channelsNum : 0
 	}
 
 	get patternsNum () {
-		return this.xmFile ? this.xmFile.patternsNum : 0
+		return this.currentFile ? this.currentFile.patternsNum : 0
 	}
 
 	get endOfSong () {
@@ -85,47 +84,27 @@ export default class XMPlayer {
 	}
 
 	get sampleNum () {
-		return this.xmFile.instruments.length
+		return this.currentFile.instruments.length
 	}
 
 	getSampleName (index: number): string {
-		return this.xmFile.instruments.length <= index ? '' : this.xmFile.instruments[index].name
+		return this.currentFile.instruments.length <= index ? '' : this.currentFile.instruments[index].name
 	}
 
-	// load module from url into local buffer
-	load (url: string) {
-		const request = new XMLHttpRequest()
-		request.open('GET', url, true)
-		request.responseType = 'arraybuffer'
-
-		this._state = PlayerState.LOADING
-
-		request.onload = () => {
-			const buffer = new Uint8Array(request.response)
-
-			const xmFile = new XMParser().parse(buffer)
-			this.xmFile = xmFile
-
-			if (this.xmFile) { // TODO always true!
-				// copy static data from player
-				this.tracker.initialize(this.xmFile, this.sampleRate)
-				this._state = PlayerState.READY
-				this.onReady()
-				if (this.autostart) {
-					this.play()
-				}
-			} else {
-				// TODO Error desc
-				this._state = PlayerState.NONE
-			}
+	load (file: XMFile) {
+		this.currentFile = file
+		// copy static data from player
+		this.tracker.initialize(this.currentFile, this.sampleRate)
+		this._state = PlayerState.READY
+		this.onReady()
+		if (this.autostart) {
+			this.play()
 		}
-		request.send()
-		return true
 	}
 
 	// play loaded and parsed module with webaudio context
 	play (): boolean {
-		if (this._state === PlayerState.NONE || this._state === PlayerState.LOADING) {
+		if (this._state === PlayerState.NONE) {
 			return false
 		}
 
@@ -138,7 +117,7 @@ export default class XMPlayer {
 			this.initAudio()
 		}
 
-		this.tracker.initialize(this.xmFile, this.sampleRate)
+		this.tracker.initialize(this.currentFile, this.sampleRate)
 		this._state = PlayerState.PLAYING
 		this.onPlay()
 
@@ -208,7 +187,7 @@ export default class XMPlayer {
 
 	// ger current pattern number
 	currentPattern (): number {
-		if (this.tracker) return this.xmFile.patternOrderTable[this.tracker.context.position]
+		if (this.tracker) return this.currentFile.patternOrderTable[this.tracker.context.position]
 		return 0
 	}
 
@@ -231,7 +210,7 @@ export default class XMPlayer {
 	// command: 0x2e=no command, 0..0x24=effect command
 	// data: 0..255
 	patternData (pn: number): Uint8Array {
-		const xmFile = this.xmFile
+		const xmFile = this.currentFile
 		const patt = new Uint8Array(xmFile.patterns[xmFile.patternOrderTable[pn]])
 		for (let i = 0; i < xmFile.patternLength[pn]; i++) {
 			for (let c = 0; c < xmFile.channelsNum; c++) {
@@ -251,7 +230,7 @@ export default class XMPlayer {
 
 	// get length of currently playing pattern
 	currentPatterLength (): number {
-		return this.xmFile.patternLength[this.xmFile.patternOrderTable[this.tracker.context.position]]
+		return this.currentFile.patternLength[this.currentFile.patternOrderTable[this.tracker.context.position]]
 	}
 
 	// create the web audio context

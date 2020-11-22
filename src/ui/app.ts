@@ -2,12 +2,9 @@
 // codepage 128x192, 16x16 -> 8x12px
 
 import XMPlayer, { PlayerState } from '../xmlib/player'
-
-type ModFile = {
-	name: string;
-	size: number;
-	path: string;
-}
+import DragDrop from './dragdrop'
+import { XMParser } from '../xmlib/engine/parser';
+import { ModFile } from './modfile'
 
 class XMPlayerApp {
 	lastTime = 0;
@@ -15,6 +12,7 @@ class XMPlayerApp {
 	player: XMPlayer;
 	ctx: CanvasRenderingContext2D;
 	canvas: HTMLCanvasElement;
+	dragDrop: DragDrop;
 
 	fontSize = 32;
 	lettersPerChannel = 14;
@@ -24,7 +22,7 @@ class XMPlayerApp {
 
 	virtualWidth = 1920;
 	virtualHeight = 1080;
-
+	currentSong: ModFile;
 	modFiles: ModFile[];
 
 	private getParameterByName (name: string): string | null {
@@ -44,6 +42,9 @@ class XMPlayerApp {
 			this.canvas = <HTMLCanvasElement>document.getElementById('player')
 
 			this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D
+
+			this.dragDrop = new DragDrop()
+			this.dragDrop.init(this.canvas, (file) => this.playSong(file))
 
 			// set fix size and set scale
 			this.canvas.height = this.virtualHeight
@@ -98,11 +99,29 @@ class XMPlayerApp {
 		request.send()
 	}
 
-	currentSong = '';
+	// load module from url into local buffer
+	loadFromUrl (url: string) {
+		const request = new XMLHttpRequest()
+		request.open('GET', url, true)
+		request.responseType = 'arraybuffer'
+
+		request.onload = () => {
+			const buffer = new Uint8Array(request.response)
+			const xmFile = new XMParser().parse(buffer)
+			this.player.load(xmFile)
+		}
+		request.send()
+		return true
+	}
 
 	private playSong (modFile: ModFile) {
-		this.currentSong = modFile.name
-		this.player.load(modFile.path)
+		this.currentSong = modFile
+		if (modFile.path) {
+			this.loadFromUrl(modFile.path)
+		} else {
+			const xmFile = new XMParser().parse(modFile.buffer)
+			this.player.load(xmFile)
+		}
 	}
 
 	private drawString (str: string, posX: number, posY: number, color = 'rgb(255,255,255') {
@@ -130,6 +149,11 @@ class XMPlayerApp {
 
 	private update (delta: number, absolute: number) {
 		this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight)
+
+		if (this.dragDrop.isDragging) {
+			this.drawString('DRAGGING', this.virtualWidth / 2, this.virtualHeight / 2)
+			return
+		}
 
 		if (this.player.state !== PlayerState.PLAYING) {
 			const str = 'TOUCH HERE TO PLAY. TOUCH AGAIN TO GO TO THE NEXT SONG'
