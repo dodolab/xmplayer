@@ -1,20 +1,18 @@
 {
   "scripts": {
-    "start": "node deploy.js && parcel view/*.html --out-dir dist",
-    "start_no_map": "node deploy.js && parcel view/*.html --out-dir dist --no-source-maps",
-    "deploy": "node deploy.js && parcel build view/*.html --out-dir dist --no-source-maps"
+    "start": "node scripts/generate_files.js && parcel view/*.html --dist-dir  dist",
+    "start_no_map": "node scripts/generate_files.js && parcel view/*.html --dist-dir dist --no-source-maps",
+    "build": "node scripts/generate_files.js && parcel build view/*.html --dist-dir dist --no-source-maps"
   },
   "devDependencies": {
-    "parcel": "^1.12.4",
-    "typescript": "^4.0.5",
-    "@typescript-eslint/eslint-plugin": "4.0.1",
-    "@typescript-eslint/parser": "4.0.1",
-    "eslint-config-standard": "14.1.1",
-    "eslint-plugin-babel": "5.3.1",
-    "eslint-plugin-import": "2.22.0",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-promise": "4.2.1",
-    "eslint-plugin-standard": "4.0.1",
-    "eslint": "7.8.1"
+	"@types/jest": "^27.0.2",
+	"@typescript-eslint/eslint-plugin": "^5.1.0",
+	"@typescript-eslint/parser": "^5.1.0",
+	"eslint": "^7.32.0",
+	"eslint-plugin-import": "^2.22.1",
+	"rimraf": "^3.0.2",
+	"tslib": "^2.5.0",
+	"typescript": "^4.4",
+	"parcel": "^2.8.3"
   }
 }

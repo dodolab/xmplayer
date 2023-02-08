@@ -1,9 +1,9 @@
 .cache/
 node_modules/
 dist/
-package-lock.json
 src/old/
 view/index_old.html
 view/style_old.css
 assets/mods/
 assets/files.json
+.parcel-cache
