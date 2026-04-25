@@ -1,75 +1,46 @@
-# XM PLAYER
+# XM Player
 
-Serverless player for XM tracker files. Contains a simple UI and XM engine, both written in *TypeScript*.
-
-Uses ParcelJS for bundling.
-
+Browser XM (Fast Tracker II) module player: **TypeScript** engine + **canvas** UI (retro VGA-style). Bundled with **Parcel**.
 **Budget: ~150 hours of work.**
+
+I built this player in 2018 to learn the basics of procedural music. Since I didn’t have much experience with TypeScript at the time, the code is a bit messy and leans more toward a procedural approach than an object-oriented one. That said, the app is fully functional, with only minor issues, and the editor is written in vanilla TypeScript (no graphics libraries used).
 
 ![XM Player screenshot](docs/screenshot.png)
 
-## Installation
-* create folder `assets/mods` and move your own files to this directory (**only files with XM extension are supported**). 
-* type `npm install`
-* type `npm start`
-* `scripts/generate_files.js` script is a NodeJS script that will go through all your XM files and create `files.json`. This file will be used by the UI player to select random files to play.
-* connect to `localhost:1234/index.html`
-* if you wanna build the whole project, run `npm run build`
+## Run / build
 
-## Architecture
+1. `npm install`
+2. Put `.xm` files under `assets/mods/` (optional; used for the default playlist).
+3. `npm start` — `scripts/generate_files.js` builds `assets/files.json` from that folder, then Parcel serves the app (e.g. `http://localhost:1234`).
+4. `npm run build` — output in `dist/`.
 
-* `UI` is very simple, uses WebCanvas and `Player` from `xmlib`
-* `Player` uses `WebAudioAPI` for biquad filters and the `ScriptProcessorNode` for filling the output buffer. Everything else (including envelopes and effects) is implemented manually.
-* `XMFile` is a structure of XM File
-* `Parser` parses XM File from a binary file
-* `Tracker` advances a context after each tick
-* `Processor` is a sound processing engine
-* `Mixer` mixes two channels and handles loops
-* `Effects` contains implementation of effects as specified by XM format
+Drag-and-drop a `.xm` onto the page or use **Open** anytime; no server beyond static hosting required for the built bundle.
 
-![XM Architecture](docs/architecture.png)
+## Architecture (short)
 
-## UI description
+| Area | Role |
+|------|------|
+| [`src/ui/app.ts`](src/ui/app.ts) | Canvas loop, input, wires panels |
+| [`src/ui/layout.ts`](src/ui/layout.ts), [`widgets.ts`](src/ui/widgets.ts), [`input.ts`](src/ui/input.ts) | Virtual 1920×1080 layout, controls, pointer mapping |
+| [`src/ui/panels/`](src/ui/panels/) | Toolbar, pattern, playlist, visualizer, instrument |
+| [`src/xmlib/player.ts`](src/xmlib/player.ts) | Web Audio graph, `ScriptProcessorNode` → `Tracker` / `Mixer` |
+| [`src/xmlib/engine/`](src/xmlib/engine/) | `parser` → `XMFile`, `tracker` + `processor` + `effects`, `mixer` |
 
-* UI is still work in progress. For now, only basics data is provided
-* Max number of channels displayed is 6. XM format can have up to 32, though.
+More detail, threading notes, and a **file change guide**: [`docs/PRD.MD`](docs/PRD.MD).
 
-![UI legend](docs/xmplayer_ui.png)
+## Using the player
 
-## XM File structure
+- **Transport**: Play / Pause / Stop, previous/next **order** (song position). **Speed** / **BPM** sliders on the toolbar.
+- **Playlist**: Click a row to load; **Sort** cycles order (original / A–Z / Z-A); **Shuffle** affects how the next track is chosen after a song ends; **Loop song** / **Loop pattern** / **Interpol** are toggles.
+- **Pattern**: Horizontal scroll (wheel) for many channels; **click a row** to seek to that row; **click channel header** to mute, **Alt+click** to solo; bottom strip = **per-channel gain** (click/drag).
+- **Order / spectrum / scopes**: Click an **order** line to jump; spectrum is post-master FFT; small scopes and stereo dots are per-channel taps from the engine.
+- **Instrument**: Left list selects an instrument; right side shows waveform, envelopes (when present), finetune / relative note.
+- **Keyboard**: Space play/pause, F5 stop, F6 play, Left/Right order, Up/Down BPM, `[` / `]` speed, `1`–`0` toggle mutes on channels 1–10 (`0` = ch 10).
 
-* Not sure if this is 100% correct. Original documentation can be found [here.](http://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html)
+## XM format reference
 
-![XM File Structure](docs/xmfile_structure.png)
-
-## TODO
-
-* portamento doesn't sound properly for several tracks
-* UI could benefit from certain attention
-* not all effects are implemented
-* big endian architectures are not yet supported
+Official-style docs: [FastTracker 2 XM (.xm)](http://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html)
 
 ## License
 
-    MIT License
-
-    Copyright (c) 2023 Adam Vesecký
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
+MIT — see [LICENSE](LICENSE).

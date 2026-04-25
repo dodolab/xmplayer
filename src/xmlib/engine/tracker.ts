@@ -96,10 +96,16 @@ export default class Tracker {
 		}
 
 		// step to new pattern?
-		if (this.context.row >= this.xmFile.patternLength[this.xmFile.patternOrderTable[this.context.position]]) {
-			this.context.position++
-			this.context.row = 0
-			this.context.flags |= XM_FLAG_NEW_PATTERN
+		const patIdx = this.xmFile.patternOrderTable[this.context.position]
+		if (this.context.row >= this.xmFile.patternLength[patIdx]) {
+			if (this.context.userPatternLoop) {
+				this.context.row = 0
+				this.context.flags |= XM_FLAG_NEW_PATTERN
+			} else {
+				this.context.position++
+				this.context.row = 0
+				this.context.flags |= XM_FLAG_NEW_PATTERN
+			}
 		}
 
 		// end of song?

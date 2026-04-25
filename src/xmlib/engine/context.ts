@@ -120,4 +120,7 @@ export class XMContext {
 	sampleRate = 0;
 
 	amigaPeriods = false;
+
+	// when true, advancing past the last row of the current pattern does not advance the song order
+	userPatternLoop = false;
 }

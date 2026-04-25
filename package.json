@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "node scripts/generate_files.js && parcel view/*.html --dist-dir  dist",
+    "start": "node scripts/generate_files.js && parcel view/*.html --port 1235",
     "start_no_map": "node scripts/generate_files.js && parcel view/*.html --dist-dir dist --no-source-maps",
     "build": "node scripts/generate_files.js && parcel build view/*.html --dist-dir dist --no-source-maps"
   },

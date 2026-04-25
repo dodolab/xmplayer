@@ -2,6 +2,7 @@ import { XMFile } from './engine/xmfile'
 import Tracker from './engine/tracker'
 import { XMParser } from './engine/parser'
 import { XM_FLAG_RECALC_SPEED } from './engine/context'
+import { decodePatternToDisplayBuffer } from './engine/patternDecode'
 
 export enum PlayerState {
 	READY,
@@ -36,12 +37,22 @@ export default class XMPlayer {
 	private mixerNode: ScriptProcessorNode;
 	private lowpassNode: BiquadFilterNode;
 	private filterNode: BiquadFilterNode;
+	private analyserNode: AnalyserNode;
 	private currentFile: XMFile;
-
+	private analyserData: Uint8Array;
 	private sampleRate: number;
 
 	// format-specific player
 	private tracker = new Tracker();
+
+	private pendingSeek: { order: number; row: number } | null = null;
+
+	/** UI-owned playback options reapplied each audio buffer */
+	public readonly channelMuted: boolean[] = [];
+	public readonly channelGain: number[] = [];
+	public soloChannelIndex = -1;
+	public userPatternLoop = false;
+	public interpolation = true;
 
 	get state () {
 		return this._state
@@ -64,41 +75,90 @@ export default class XMPlayer {
 	}
 
 	get endOfSong () {
-		return this.tracker.context.endOfSong
+		return this.tracker.context?.endOfSong ?? false
 	}
 
 	get row () {
-		return this.tracker.context.row
+		return this.tracker.context?.row ?? 0
 	}
 
 	get position () {
-		return this.tracker.context.position
+		return this.tracker.context?.position ?? 0
 	}
 
 	get currentSpeed () {
-		return this.tracker.context.currentSpeed
+		const ctx = this.tracker.context
+		if (!ctx) return 6
+		return ctx.currentSpeed || 6
 	}
 
 	get currentBpm () {
-		return this.tracker.context.currentBpm
+		const ctx = this.tracker.context
+		if (!ctx) return 125
+		return ctx.currentBpm || 125
 	}
 
 	get sampleNum () {
-		return this.currentFile.instruments.length
+		return this.currentFile ? this.currentFile.instruments.length : 0
+	}
+
+	get loadedModule (): XMFile | null {
+		return this.currentFile ?? null
+	}
+
+	get analyserBinCount (): number {
+		return this.audioInitialized ? this.analyserData.length : 256
+	}
+
+	get patternOrderTable (): number[] {
+		return this.currentFile ? [...this.currentFile.patternOrderTable] : []
+	}
+
+	firstOrderWithPattern (patternIndex: number): number {
+		if (!this.currentFile) return 0
+		for (let i = 0; i < this.currentFile.songLength; i++) {
+			if (this.currentFile.patternOrderTable[i] === patternIndex) return i
+		}
+		return 0
 	}
 
 	getSampleName (index: number): string {
+		if (!this.currentFile) return ''
 		return this.currentFile.instruments.length <= index ? '' : this.currentFile.instruments[index].name
 	}
 
 	load (file: XMFile) {
 		this.currentFile = file
+		this.initChannelUiState()
 		// copy static data from player
 		this.tracker.initialize(this.currentFile, this.sampleRate)
+		this.applyUserPlaybackFlags()
 		this._state = PlayerState.READY
 		this.onReady()
 		if (this.autostart) {
 			this.play()
+		}
+	}
+
+	private initChannelUiState () {
+		const n = this.currentFile ? this.currentFile.channelsNum : 0
+		this.channelMuted.length = 0
+		this.channelGain.length = 0
+		for (let i = 0; i < n; i++) {
+			this.channelMuted.push(false)
+			this.channelGain.push(1)
+		}
+	}
+
+	private applyUserPlaybackFlags () {
+		if (this.tracker.context) {
+			this.tracker.context.userPatternLoop = this.userPatternLoop
+		}
+		this.tracker.mixer.interpolationEnabled = this.interpolation
+		this.tracker.mixer.soloChannel = this.soloChannelIndex
+		for (let i = 0; i < this.channelsNum; i++) {
+			this.tracker.mixer.setChannelMuted(i, !!this.channelMuted[i])
+			this.tracker.mixer.setChannelGain(i, this.channelGain[i] ?? 1)
 		}
 	}
 
@@ -118,6 +178,7 @@ export default class XMPlayer {
 		}
 
 		this.tracker.initialize(this.currentFile, this.sampleRate)
+		this.applyUserPlaybackFlags()
 		this._state = PlayerState.PLAYING
 		this.onPlay()
 
@@ -144,6 +205,8 @@ export default class XMPlayer {
 
 	// jump positions forward/back
 	jump (step: number) {
+		if (!this.tracker.context) return
+		this.pendingSeek = null
 		this.tracker.context.tick = 0
 		this.tracker.context.row = 0
 		this.tracker.context.position += step
@@ -154,10 +217,79 @@ export default class XMPlayer {
 		}
 	}
 
+	seekToOrderRow (orderIndex: number, row: number) {
+		if (!this.currentFile || orderIndex < 0) return
+		if (orderIndex >= this.songLength) return
+		const pat = this.currentFile.patternOrderTable[orderIndex]
+		const maxRow = this.currentFile.patternLength[pat] - 1
+		const r = Math.max(0, Math.min(row, maxRow))
+		this.pendingSeek = { order: orderIndex, row: r }
+	}
+
+	setSpeed (v: number) {
+		const n = Math.max(1, Math.min(255, Math.floor(v)))
+		if (this.tracker.context) this.tracker.context.currentSpeed = n
+	}
+
+	setBpm (v: number) {
+		const n = Math.max(32, Math.min(255, Math.floor(v)))
+		if (this.tracker.context) this.tracker.context.currentBpm = n
+	}
+
+	setUserPatternLoop (on: boolean) {
+		this.userPatternLoop = on
+		if (this.tracker.context) this.tracker.context.userPatternLoop = on
+	}
+
+	setInterpolation (on: boolean) {
+		this.interpolation = on
+		this.tracker.mixer.interpolationEnabled = on
+	}
+
+	setChannelMuted (ch: number, muted: boolean) {
+		if (ch < 0 || ch >= this.channelMuted.length) return
+		this.channelMuted[ch] = muted
+		this.tracker.mixer.setChannelMuted(ch, muted)
+	}
+
+	toggleChannelMute (ch: number) {
+		if (ch < 0 || ch >= this.channelMuted.length) return
+		this.setChannelMuted(ch, !this.channelMuted[ch])
+	}
+
+	setSoloChannel (ch: number | null) {
+		this.soloChannelIndex = ch === null ? -1 : ch
+		this.tracker.mixer.soloChannel = this.soloChannelIndex
+	}
+
+	setChannelUiGain (ch: number, linear: number) {
+		if (ch < 0 || ch >= this.channelGain.length) return
+		const g = Math.max(0, Math.min(2, linear))
+		this.channelGain[ch] = g
+		this.tracker.mixer.setChannelGain(ch, g)
+	}
+
+	copyScopeRing (ch: number, out: Float32Array): number {
+		return this.tracker.mixer.readScopeRing(ch, out)
+	}
+
+	getVuPeak (ch: number): number {
+		return ch >= 0 && ch < 32 ? this.tracker.mixer.vuPeak[ch] : 0
+	}
+
+	getChannelFinalPan (ch: number): number {
+		const ctx = this.tracker.context
+		if (!ctx?.channels[ch]) return 0.5
+		return ctx.channels[ch].finalPan
+	}
+
 	// set whether module repeats after songlen
 	setRepeat (rep: boolean) {
 		this.repeat = rep
-		if (this.tracker) this.repeat = rep
+	}
+
+	get songRepeating (): boolean {
+		return this.repeat
 	}
 
 	// set stereo separation mode (0=standard, 1=65/35 mix, 2=mono)
@@ -187,19 +319,26 @@ export default class XMPlayer {
 
 	// ger current pattern number
 	currentPattern (): number {
-		if (this.tracker) return this.currentFile.patternOrderTable[this.tracker.context.position]
-		return 0
+		if (!this.currentFile || !this.tracker.context) return 0
+		return this.currentFile.patternOrderTable[this.tracker.context.position]
 	}
 
 	// check if a channel has a note on
 	isNoteOn (ch: number): boolean {
-		if (ch >= this.channelsNum) return false
+		if (ch >= this.channelsNum || !this.tracker.context) return false
 		return this.tracker.context.channels[ch].noteOn
+	}
+
+	isNoteOnForInstrument (instrumentIndex: number): boolean {
+		for (let c = 0; c < this.channelsNum; c++) {
+			if (this.isNoteOn(c) && this.currentSample(c) === instrumentIndex) return true
+		}
+		return false
 	}
 
 	// get currently active sample on channel
 	currentSample (ch: number): number {
-		if (ch >= this.channelsNum) return 0
+		if (ch >= this.channelsNum || !this.tracker.context) return 0
 		return this.tracker.context.channels[ch].instrumentIndex
 	}
 
@@ -209,27 +348,25 @@ export default class XMPlayer {
 	// volume: 255=no volume set, 0..64=set volume, 65..239=ft2 volume commands
 	// command: 0x2e=no command, 0..0x24=effect command
 	// data: 0..255
-	patternData (pn: number): Uint8Array {
+	patternData (orderIndex: number): Uint8Array {
 		const xmFile = this.currentFile
-		const patt = new Uint8Array(xmFile.patterns[xmFile.patternOrderTable[pn]])
-		for (let i = 0; i < xmFile.patternLength[pn]; i++) {
-			for (let c = 0; c < xmFile.channelsNum; c++) {
-				if (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] < 97) { patt[i * 5 * xmFile.channelsNum + c * 5 + 0] = (patt[i * 5 * xmFile.channelsNum + c * 5 + 0] % 12) | (Math.floor(patt[i * 5 * xmFile.channelsNum + c * 5 + 0] / 12) << 4) }
-				if (patt[i * 5 * xmFile.channelsNum + c * 5 + 3] === 255) patt[i * 5 * xmFile.channelsNum + c * 5 + 3] = 0x2e
-				else {
-					if (patt[i * 5 * xmFile.channelsNum + c * 5 + 3] < 0x0a) {
-						patt[i * 5 * xmFile.channelsNum + c * 5 + 3] += 0x30
-					} else {
-						patt[i * 5 * xmFile.channelsNum + c * 5 + 3] += 0x41 - 0x0a
-					}
-				}
-			}
+		const patIdx = xmFile.patternOrderTable[orderIndex]
+		const raw = xmFile.patterns[patIdx]
+		const rows = xmFile.patternLength[patIdx]
+		return decodePatternToDisplayBuffer(raw, xmFile.channelsNum, rows)
+	}
+
+	frequencyData (): Uint8Array {
+		if (!this.audioInitialized) {
+			return new Uint8Array(256)
 		}
-		return patt
+		this.analyserNode.getByteFrequencyData(this.analyserData)
+		return this.analyserData
 	}
 
 	// get length of currently playing pattern
 	currentPatterLength (): number {
+		if (!this.currentFile || !this.tracker.context) return 0
 		return this.currentFile.patternLength[this.currentFile.patternOrderTable[this.tracker.context.position]]
 	}
 
@@ -260,11 +397,15 @@ export default class XMPlayer {
 		}
 
 		this.mixerNode.onaudioprocess = (ape: AudioProcessingEvent) => { this.audioLoop(ape) }
+		this.analyserNode = context.createAnalyser()
+		this.analyserNode.fftSize = 512
+		this.analyserData = new Uint8Array(this.analyserNode.frequencyBinCount)
 
 		// patch up some cables :)
 		this.mixerNode.connect(this.filterNode)
 		this.filterNode.connect(this.lowpassNode)
-		this.lowpassNode.connect(context.destination)
+		this.lowpassNode.connect(this.analyserNode)
+		this.analyserNode.connect(context.destination)
 		this.audioInitialized = true
 	}
 
@@ -275,6 +416,19 @@ export default class XMPlayer {
 		const buflen = ape.outputBuffer.length
 
 		if (this.initDelay === 0) {
+			if (this.pendingSeek) {
+				const { order, row } = this.pendingSeek
+				this.pendingSeek = null
+				const xc = this.tracker.context
+				if (xc && this.currentFile && order >= 0 && order < this.songLength) {
+					xc.position = order
+					xc.row = row
+					xc.tick = 0
+					xc.endOfSong = false
+					xc.flags = XM_FLAG_RECALC_SPEED
+				}
+			}
+			this.applyUserPlaybackFlags()
 			// return a buffer of silence if not playing
 			if (this.state !== PlayerState.PLAYING || this.endOfSong) {
 				// todo set only once!
@@ -283,14 +437,16 @@ export default class XMPlayer {
 					bufs[1][s] = 0.0
 				}
 			} else {
+				this.tracker.mixer.startAudioBuffer()
 				this.tracker.mix(bufs, buflen)
 			}
 
 			this.applySeparation(bufs, buflen)
 
-			if (this.tracker.context.endOfSong && this.repeat) {
+			const xc = this.tracker.context
+			if (xc?.endOfSong && this.repeat) {
 				this.tracker.repeat()
-			} else if (this.tracker.context.endOfSong && this.state === PlayerState.PLAYING) { this.stop() }
+			} else if (xc?.endOfSong && this.state === PlayerState.PLAYING) { this.stop() }
 		} else {
 			// delay.. anyway, return silent buffer (TODO refactor this)
 			for (let s = 0; s < buflen; s++) {
