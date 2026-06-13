@@ -36,6 +36,10 @@ import {
 import { drawVisualizerPanel, hitOrderList } from './panels/visualizer'
 import { drawInstrumentList, drawInstrumentPanel, hitInstrumentList } from './panels/instrument'
 import { attachKeyboard } from './keyboard'
+import {
+	drawStarfield,
+	drawCracktroFullscreen
+} from './cracktro'
 
 const virtualWidth = 1920
 const virtualHeight = 1080
@@ -72,6 +76,7 @@ class XMPlayerApp {
 	private selectedInst = 0
 	private sampleSubIndex = 0
 	private shuffleNext = false
+	private cracktroMode = false
 	private pendingAutoPlay = false
 
 	private getParameterByName (name: string): string | null {
@@ -133,7 +138,8 @@ class XMPlayerApp {
 				onPrevOrder: () => this.player.jump(-1),
 				onNextOrder: () => this.player.jump(1),
 				onBpmDelta: (d) => this.player.setBpm(this.player.currentBpm + d),
-				onSpeedDelta: (d) => this.player.setSpeed(this.player.currentSpeed + d)
+				onSpeedDelta: (d) => this.player.setSpeed(this.player.currentSpeed + d),
+				onToggleCracktro: () => { this.cracktroMode = !this.cracktroMode }
 			})
 
 			this.pickInitialSong()
@@ -195,6 +201,7 @@ class XMPlayerApp {
 		})
 		this.canvas.addEventListener('wheel', (e) => {
 			e.preventDefault()
+			if (this.cracktroMode) return
 			const p = clientToVirtual(e.clientX, e.clientY, this.canvas, virtualWidth, virtualHeight)
 			const dy = e.deltaY > 0 ? 1 : -1
 			if (contains(this.panels.pattern, p.x, p.y)) {
@@ -211,6 +218,11 @@ class XMPlayerApp {
 	}
 
 	private onMouseDown (x: number, y: number, altKey: boolean) {
+		if (this.cracktroMode) {
+			this.cracktroMode = false
+			return
+		}
+
 		const tb = hitToolbar(x, y, this.toolbarLayout)
 		this.pressedHit = tb
 		this.pressedPlaylistControl = hitPlaylistControl(this.panels.playlist, x, y)
@@ -233,6 +245,7 @@ class XMPlayerApp {
 		if (tb === 'repeat') this.player.setRepeat(!this.player.songRepeating)
 		if (tb === 'patloop') this.player.setUserPatternLoop(!this.player.userPatternLoop)
 		if (tb === 'interp') this.player.setInterpolation(!this.player.interpolation)
+		if (tb === 'cracktro') this.cracktroMode = !this.cracktroMode
 
 		if (tb === 'speed') {
 			const v = toolbarSliderValue('speed', x, y, this.toolbarLayout)
@@ -331,16 +344,47 @@ class XMPlayerApp {
 		requestAnimationFrame((t) => this.loop(t))
 	}
 
-	private update (_delta: number, _absolute: number) {
-		this.panels = computePanels(virtualWidth, virtualHeight)
-		this.toolbarLayout = layoutToolbar(this.panels.toolbar)
-		this.hoverHit = hitToolbar(this.mx, this.my, this.toolbarLayout)
+	private update (_delta: number, absolute: number) {
+		this.ctx.setTransform(1, 0, 0, 1, 0, 0)
+		this.ctx.globalAlpha = 1
+		this.ctx.globalCompositeOperation = 'source-over'
 
 		this.ctx.clearRect(0, 0, virtualWidth, virtualHeight)
 		this.ctx.fillStyle = 'rgb(0,0,0)'
 		this.ctx.fillRect(0, 0, virtualWidth, virtualHeight)
 
-		drawPanelChrome(this.ctx, this.panels.toolbar, '')
+		if (this.cracktroMode) {
+			try {
+				this.drawCracktroFrame(absolute)
+			} catch (err) {
+				console.error('CRACKTRO render error:', err)
+				this.cracktroMode = false
+				this.drawPlayerFrame(absolute)
+			}
+			return
+		}
+
+		this.panels = computePanels(virtualWidth, virtualHeight)
+		this.toolbarLayout = layoutToolbar(this.panels.toolbar)
+		this.hoverHit = hitToolbar(this.mx, this.my, this.toolbarLayout)
+
+		try {
+			this.drawPlayerFrame(absolute)
+		} catch (err) {
+			console.error('render error:', err)
+		}
+	}
+
+	private drawCracktroFrame (absolute: number) {
+		drawStarfield(this.ctx, virtualWidth, virtualHeight, absolute)
+		const songName = this.displayFiles[this.currentFileIndex]?.name ?? 'NO MODULE'
+		drawCracktroFullscreen(this.ctx, virtualWidth, virtualHeight, this.player, songName, absolute)
+	}
+
+	private drawPlayerFrame (_absolute: number) {
+		const chrome = (title: string, r: Rect) => drawPanelChrome(this.ctx, r, title)
+
+		chrome('', this.panels.toolbar)
 		drawToolbar(
 			this.ctx,
 			this.toolbarLayout,
@@ -351,10 +395,11 @@ class XMPlayerApp {
 			this.player.songRepeating,
 			this.player.userPatternLoop,
 			this.player.interpolation,
+			false,
 			''
 		)
 
-		drawPanelChrome(this.ctx, this.panels.pattern, '')
+		chrome('', this.panels.pattern)
 		layoutPatternMetrics(this.ctx, this.panels.pattern, this.player.channelsNum, this.patternState)
 		const pdata =
 			this.player.state !== PlayerState.NONE && this.player.channelsNum > 0
@@ -362,7 +407,7 @@ class XMPlayerApp {
 				: null
 		drawPatternPanel(this.ctx, this.panels.pattern, this.player, this.patternState, pdata)
 
-		drawPanelChrome(this.ctx, this.panels.playlist, '')
+		chrome('', this.panels.playlist)
 		drawPlaylist(
 			this.ctx,
 			this.panels.playlist,
@@ -374,12 +419,12 @@ class XMPlayerApp {
 			this.pressedPlaylistControl
 		)
 
-		drawPanelChrome(this.ctx, this.panels.visualizer, '')
+		chrome('', this.panels.visualizer)
 		const freq =
 			this.player.state === PlayerState.PLAYING ? this.player.frequencyData() : new Uint8Array(this.player.analyserBinCount)
 		drawVisualizerPanel(this.ctx, this.panels.visualizer, this.player, freq, this.orderScroll)
 
-		drawPanelChrome(this.ctx, this.panels.instrument, 'Instrument')
+		chrome('Instrument', this.panels.instrument)
 		const listR: Rect = {
 			x: this.panels.instrument.x + 4,
 			y: this.panels.instrument.y + 20,
@@ -395,7 +440,6 @@ class XMPlayerApp {
 			h: this.panels.instrument.h - 8
 		}
 		drawInstrumentPanel(this.ctx, detail, inst, this.sampleSubIndex)
-
 	}
 }
 

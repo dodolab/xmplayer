@@ -7,6 +7,7 @@ export type KeyboardContext = {
 	onNextOrder: () => void
 	onBpmDelta: (d: number) => void
 	onSpeedDelta: (d: number) => void
+	onToggleCracktro?: () => void
 }
 
 export function attachKeyboard (ctx: KeyboardContext) {
@@ -29,6 +30,11 @@ export function attachKeyboard (ctx: KeyboardContext) {
 		if (k === 'F6') {
 			e.preventDefault()
 			p.play()
+			return
+		}
+		if (k === 'F8') {
+			e.preventDefault()
+			ctx.onToggleCracktro?.()
 			return
 		}
 		if (k === 'ArrowLeft') {

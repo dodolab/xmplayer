@@ -28,7 +28,7 @@ export type PanelLayout = {
 }
 
 export function computePanels (vw: number, vh: number): PanelLayout {
-	const toolbarH = Math.min(120, vh * 0.11)
+	const toolbarH = Math.min(140, vh * 0.13)
 	const bottomH = Math.min(380, vh * 0.35)
 	const patternH = vh - toolbarH - bottomH
 	const yb = toolbarH + patternH
